@@ -111,14 +111,6 @@ object frmMain: TfrmMain
       OnClick = btnSaveBoxClick
     end
   end
-  object OpenDialog1: TOpenDialog
-    Filter = 
-      'Arquivos .tif|*.tif|Arquivos .gt.txt|*.gt.txt|Arquivos .box|*.bo' +
-      'x'
-    InitialDir = 'D:\Treinamento\arquivos'
-    Left = 960
-    Top = 16
-  end
   object SaveDialog1: TSaveDialog
     Filter = 'Arquivos .box|*.box'
     InitialDir = 'D:\Treinamento\arquivos'

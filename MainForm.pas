@@ -16,7 +16,6 @@ type
   TfrmMain = class(TForm)
     ScrollBox1: TScrollBox;
     Image1: TImage;
-    OpenDialog1: TOpenDialog;
     Panel1: TPanel;
     Panel2: TPanel;
     Memo1: TMemo;
@@ -181,7 +180,7 @@ begin
   SaveDialog1.FileName := FolderPath + ChangeFileExt(SelectedFile, '.box');
   if SaveDialog1.Execute then
   begin
-    SaveBoxesToBox(OpenDialog1.FileName);
+    SaveBoxesToBox(SaveDialog1.FileName);
     ShowMessage('Arquivo .box salvo com sucesso!');
   end;
 end;
