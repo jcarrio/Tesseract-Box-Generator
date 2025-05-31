@@ -14,4 +14,9 @@ O objetivo principal do programa é **gerar arquivos `.box` a partir de imagens 
 
 Esse tipo de ferramenta é fundamental em projetos de processamento de imagens e reconhecimento de texto, onde a precisão na delimitação das áreas de interesse impacta diretamente na qualidade dos resultados.
 
----
+
+## Tecnologias Utilizadas
+
+Este projeto foi desenvolvido em **Delphi 7** e utiliza o pacote de componentes **ImageEn** para manipulação avançada de imagens, especialmente para o carregamento e exibição de arquivos TIFF.  
+
+O ImageEn oferece suporte a múltiplas páginas, compressão, e correção automática da orientação das imagens TIFF, funcionalidades essenciais para o correto processamento das imagens neste projeto.
