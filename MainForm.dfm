@@ -74,12 +74,20 @@ object frmMain: TfrmMain
     DesignSize = (
       1008
       129)
+    object Label1: TLabel
+      Left = 24
+      Top = 15
+      Width = 49
+      Height = 13
+      Caption = 'Inclina'#231#227'o'
+    end
     object Memo1: TMemo
-      Left = 8
+      Left = 112
       Top = 8
       Width = 449
       Height = 113
-      TabOrder = 0
+      ReadOnly = True
+      TabOrder = 3
     end
     object btnIncrease: TButton
       Left = 920
@@ -88,7 +96,7 @@ object frmMain: TfrmMain
       Height = 25
       Anchors = [akTop, akRight]
       Caption = 'Aumentar'
-      TabOrder = 1
+      TabOrder = 5
       OnClick = btnIncreaseClick
     end
     object btnDecrease: TButton
@@ -98,17 +106,43 @@ object frmMain: TfrmMain
       Height = 25
       Anchors = [akTop, akRight]
       Caption = 'Diminuir'
-      TabOrder = 2
+      TabOrder = 6
       OnClick = btnDecreaseClick
     end
     object btnSaveBox: TButton
-      Left = 470
+      Left = 574
       Top = 16
       Width = 75
       Height = 25
-      Caption = 'Save Box'
-      TabOrder = 3
+      Caption = 'Salvar Box'
+      TabOrder = 4
       OnClick = btnSaveBoxClick
+    end
+    object edtInclinacao: TEdit
+      Left = 24
+      Top = 31
+      Width = 65
+      Height = 21
+      TabOrder = 0
+      OnKeyPress = edtInclinacaoKeyPress
+    end
+    object btnProcessar: TButton
+      Left = 24
+      Top = 55
+      Width = 75
+      Height = 25
+      Caption = 'Processar'
+      TabOrder = 1
+      OnClick = btnProcessarClick
+    end
+    object btnSalvaTif: TButton
+      Left = 24
+      Top = 87
+      Width = 75
+      Height = 25
+      Caption = 'Salvar TIF'
+      TabOrder = 2
+      OnClick = btnSalvaTifClick
     end
   end
   object SaveDialog1: TSaveDialog

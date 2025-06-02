@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls;
+  Dialogs, ExtCtrls, StdCtrls, ComCtrls;
 
 type
   TBoxRecord = record
@@ -25,6 +25,10 @@ type
     btnDecrease: TButton;
     btnSaveBox: TButton;
     SaveDialog1: TSaveDialog;
+    Label1: TLabel;
+    edtInclinacao: TEdit;
+    btnProcessar: TButton;
+    btnSalvaTif: TButton;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -39,6 +43,9 @@ type
     procedure Image1Click(Sender: TObject);
     procedure btnPastaClick(Sender: TObject);
     procedure ListBox1Click(Sender: TObject);
+    procedure btnProcessarClick(Sender: TObject);
+    procedure edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
+    procedure btnSalvaTifClick(Sender: TObject);
   private
     Boxes: array of TBoxRecord;
     SelectedBox: Integer;
@@ -46,7 +53,9 @@ type
     DragOffset: TPoint;
     FBufferBitmap: TBitmap;
     FOriginalBitmap: TBitmap;
+    FRotatedBmp: TBitmap;
     FolderPath: String;
+    Processando: Boolean;
     procedure DrawBoxes;
     procedure SaveBoxesToBox(const FileName: string);
     procedure DrawBoxesOnCanvas(ACanvas: TCanvas);
@@ -63,8 +72,45 @@ implementation
 
 {$R *.dfm}
 
-uses FileCtrl, imageenio,
-  StrUtils;
+uses FileCtrl, imageenio, StrUtils, Math;
+
+procedure RotateBitmap(const Src: TBitmap; Angle: Single; var Dest: TBitmap);
+var
+  cx, cy: Integer;
+  radAngle: Double;
+  sinA, cosA: Double;
+  x, y: Integer;
+  newX, newY: Integer;
+  centerX, centerY: Integer;
+begin
+  radAngle := DegToRad(Angle);
+  sinA := Sin(radAngle);
+  cosA := Cos(radAngle);
+
+  centerX := Src.Width div 2;
+  centerY := Src.Height div 2;
+
+  Dest.PixelFormat := Src.PixelFormat;
+  Dest.Width := Src.Width;
+  Dest.Height := Src.Height;
+
+  Dest.Canvas.Brush.Color := clWhite;
+  Dest.Canvas.FillRect(Rect(0, 0, Dest.Width, Dest.Height));
+
+  for y := 0 to Dest.Height - 1 do
+  begin
+    for x := 0 to Dest.Width - 1 do
+    begin
+      newX := Round(cosA * (x - centerX) + sinA * (y - centerY)) + centerX;
+      newY := Round(-sinA * (x - centerX) + cosA * (y - centerY)) + centerY;
+
+      if (newX >= 0) and (newX < Src.Width) and (newY >= 0) and (newY < Src.Height) then
+      begin
+        Dest.Canvas.Pixels[x, y] := Src.Canvas.Pixels[newX, newY];
+      end;
+    end;
+  end;
+end;
 
 procedure TfrmMain.ShowBoxesInfo;
 var
@@ -100,6 +146,9 @@ begin
   IsDragging := False;
   FBufferBitmap := TBitmap.Create;
   FOriginalBitmap := TBitmap.Create;
+  FRotatedBmp := TBitmap.Create;
+  Processando := False;
+  btnSalvaTif.Enabled := False;
 end;
 
 procedure TfrmMain.LoadBoxesFromBox(const FileName: string);
@@ -176,6 +225,7 @@ procedure TfrmMain.btnSaveBoxClick(Sender: TObject);
 var
   SelectedFile: string;
 begin
+  if ListBox1.ItemIndex < 0 then exit;
   SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
   SaveDialog1.FileName := FolderPath + ChangeFileExt(SelectedFile, '.box');
   if SaveDialog1.Execute then
@@ -297,6 +347,7 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
+  FRotatedBmp.Free;
   FBufferBitmap.Free;
   FOriginalBitmap.Free;
 end;
@@ -488,6 +539,80 @@ begin
   UpdateImageCanvas;
   ShowBoxesInfo; // opcional: mostrar lista de caixas
 
+end;
+
+procedure TfrmMain.btnProcessarClick(Sender: TObject);
+begin
+  if (Processando)or(edtInclinacao.Text = '')or(ListBox1.ItemIndex < 0) then exit;
+  if (StrToInt(edtInclinacao.Text) < -360)or(StrToInt(edtInclinacao.Text) > 360) then
+  begin
+    ShowMessage('Valor de grau de inclinação inválido!');
+    exit;
+  end;
+
+  Processando := True;
+  edtInclinacao.Enabled := False;
+  btnProcessar.Enabled := False;
+  btnSalvaTif.Enabled := False;
+  Application.ProcessMessages;
+  if Assigned(FOriginalBitmap) then
+  begin
+
+    RotateBitmap(FOriginalBitmap, StrToInt(edtInclinacao.Text), FRotatedBmp);
+
+    FBufferBitmap.Width := FRotatedBmp.Width;
+    FBufferBitmap.Height := FRotatedBmp.Height;
+    FBufferBitmap.PixelFormat := pf24bit;
+
+    // Copia a imagem original limpa para o buffer
+    FBufferBitmap.Canvas.Draw(0, 0, FRotatedBmp);
+
+    // Desenha as caixas no buffer
+    DrawBoxesOnCanvas(FBufferBitmap.Canvas);
+
+    // Atualiza o Image1 com o bitmap buffer
+    Image1.Picture.Bitmap.Assign(FBufferBitmap);
+    Image1.Invalidate;
+
+    btnSalvaTif.Enabled := True;
+
+  end;
+  Processando := False;
+  edtInclinacao.Enabled := True;
+  btnProcessar.Enabled := True;
+end;
+
+procedure TfrmMain.edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
+const
+  chars = ['0'..'9','-',#8];
+begin
+  if not (Key in chars) then
+    Key := #0;
+end;
+
+procedure TfrmMain.btnSalvaTifClick(Sender: TObject);
+var
+  SelectedFile, FullPath: string;
+  ImageEnIO: TImageEnIO;
+begin
+
+  SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
+  FullPath := FolderPath + SelectedFile;
+
+  RenameFile(FullPath, ChangeFileExt(FullPath,'.bak'));
+
+  ImageEnIO := TImageEnIO.Create(nil);
+  try
+    // Salva o bitmap rotacionado em TIFF
+    ImageEnIO.CreateFromBitmap(FRotatedBmp);
+    ImageEnIO.SaveToFile(FullPath);
+  finally
+    ImageEnIO.Free;
+  end;
+
+  FOriginalBitmap.Assign(FRotatedBmp);
+  btnSalvaTif.Enabled := False;
+  edtInclinacao.Clear;
 end;
 
 end.
