@@ -223,16 +223,14 @@ end;
 
 procedure TfrmMain.btnSaveBoxClick(Sender: TObject);
 var
-  SelectedFile: string;
+  SelectedFile, FullPath: string;
 begin
   if ListBox1.ItemIndex < 0 then exit;
   SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
-  SaveDialog1.FileName := FolderPath + ChangeFileExt(SelectedFile, '.box');
-  if SaveDialog1.Execute then
-  begin
-    SaveBoxesToBox(SaveDialog1.FileName);
-    ShowMessage('Arquivo .box salvo com sucesso!');
-  end;
+  FullPath := FolderPath + ChangeFileExt(SelectedFile, '.box');;
+
+  SaveBoxesToBox(FullPath);
+  ShowMessage('Arquivo .box salvo com sucesso!');
 end;
 
 procedure TfrmMain.DrawBoxes;
