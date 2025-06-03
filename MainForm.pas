@@ -13,6 +13,8 @@ type
     Page: Integer;
   end;
 
+  TImageState = (is24Bit, is8Bit, is1Bit, isRotated);
+
   TfrmMain = class(TForm)
     ScrollBox1: TScrollBox;
     Image1: TImage;
@@ -29,6 +31,8 @@ type
     edtInclinacao: TEdit;
     btnProcessar: TButton;
     btnSalvaTif: TButton;
+    btnCinza: TButton;
+    btnBinario: TButton;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -46,6 +50,8 @@ type
     procedure btnProcessarClick(Sender: TObject);
     procedure edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
     procedure btnSalvaTifClick(Sender: TObject);
+    procedure btnCinzaClick(Sender: TObject);
+    procedure btnBinarioClick(Sender: TObject);
   private
     Boxes: array of TBoxRecord;
     SelectedBox: Integer;
@@ -53,15 +59,19 @@ type
     DragOffset: TPoint;
     FBufferBitmap: TBitmap;
     FOriginalBitmap: TBitmap;
+    FModifiedBmp: TBitmap;
     FRotatedBmp: TBitmap;
     FolderPath: String;
     Processando: Boolean;
+    Estado: TImageState;
     procedure DrawBoxes;
     procedure SaveBoxesToBox(const FileName: string);
     procedure DrawBoxesOnCanvas(ACanvas: TCanvas);
     procedure UpdateImageCanvas;
     procedure ShowBoxesInfo;
     procedure LoadBoxesFromBox(const FileName: string);
+    procedure AtualizaTela(pRotacao: Boolean = false);
+    procedure HabilitaBotoes;
   public
   end;
 
@@ -72,43 +82,23 @@ implementation
 
 {$R *.dfm}
 
-uses FileCtrl, imageenio, StrUtils, Math;
+uses FileCtrl, imageenio, StrUtils, Math, imageenproc, hyieutils;
 
 procedure RotateBitmap(const Src: TBitmap; Angle: Single; var Dest: TBitmap);
 var
-  cx, cy: Integer;
-  radAngle: Double;
-  sinA, cosA: Double;
-  x, y: Integer;
-  newX, newY: Integer;
-  centerX, centerY: Integer;
+  Proc: TImageEnProc;
 begin
-  radAngle := DegToRad(Angle);
-  sinA := Sin(radAngle);
-  cosA := Cos(radAngle);
+  Proc := TImageEnProc.Create(nil);
+  try
+    Dest.Assign(Src);
 
-  centerX := Src.Width div 2;
-  centerY := Src.Height div 2;
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(Dest);
 
-  Dest.PixelFormat := Src.PixelFormat;
-  Dest.Width := Src.Width;
-  Dest.Height := Src.Height;
-
-  Dest.Canvas.Brush.Color := clWhite;
-  Dest.Canvas.FillRect(Rect(0, 0, Dest.Width, Dest.Height));
-
-  for y := 0 to Dest.Height - 1 do
-  begin
-    for x := 0 to Dest.Width - 1 do
-    begin
-      newX := Round(cosA * (x - centerX) + sinA * (y - centerY)) + centerX;
-      newY := Round(-sinA * (x - centerX) + cosA * (y - centerY)) + centerY;
-
-      if (newX >= 0) and (newX < Src.Width) and (newY >= 0) and (newY < Src.Height) then
-      begin
-        Dest.Canvas.Pixels[x, y] := Src.Canvas.Pixels[newX, newY];
-      end;
-    end;
+    // Rotaciona 30 graus com suavização bilinear
+    Proc.Rotate(Angle, true, ierBilinear);
+  finally
+    Proc.Free;
   end;
 end;
 
@@ -146,6 +136,7 @@ begin
   IsDragging := False;
   FBufferBitmap := TBitmap.Create;
   FOriginalBitmap := TBitmap.Create;
+  FModifiedBmp := TBitmap.Create;
   FRotatedBmp := TBitmap.Create;
   Processando := False;
   btnSalvaTif.Enabled := False;
@@ -278,7 +269,7 @@ begin
 
   FBufferBitmap.Width := FOriginalBitmap.Width;
   FBufferBitmap.Height := FOriginalBitmap.Height;
-  FBufferBitmap.PixelFormat := pf24bit;
+  FBufferBitmap.PixelFormat := FOriginalBitmap.PixelFormat;
 
   // Copia a imagem original limpa para o buffer
   FBufferBitmap.Canvas.Draw(0, 0, FOriginalBitmap);
@@ -346,6 +337,7 @@ end;
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
   FRotatedBmp.Free;
+  FModifiedBmp.Free;
   FBufferBitmap.Free;
   FOriginalBitmap.Free;
 end;
@@ -459,7 +451,8 @@ var
   SL: TStringList;
   i, x, y, boxWidth, boxHeight: Integer;
   c: Char;
-  text: String;
+  texto: String;
+  f: TextFile;
 begin
   if ListBox1.ItemIndex < 0 then Exit;
   Memo1.Clear;
@@ -476,6 +469,11 @@ begin
       raise Exception.Create('Erro na tentativa de carregar a imagem!');
     Image1.Width := Image1.Picture.Width;
     Image1.Height := Image1.Picture.Height;
+    case Image1.Picture.Bitmap.PixelFormat of
+      pf1bit          : Estado := is1Bit;
+      pf8bit          : Estado := is8Bit;
+      pf16bit,pf24bit : Estado := is24Bit;
+    end;                                  
 
     FOriginalBitmap.Assign(Image1.Picture.Bitmap);
 
@@ -488,8 +486,14 @@ begin
   end;
 
   arqgt := ChangeFileExt(FullPath, '.gt.txt');
-  if not FileExists(arqgt) then
-    exit;
+  if not FileExists(arqgt) then begin
+    texto := InputBox('Texto gt.txt','Informe o texto que aparece na imagem','');
+    if texto = '' then
+      exit;
+    AssignFile(f, arqgt);
+    Writeln(f, texto);
+    CloseFile(f);
+  end;
 
   SL := TStringList.Create;
   try
@@ -537,6 +541,34 @@ begin
   UpdateImageCanvas;
   ShowBoxesInfo; // opcional: mostrar lista de caixas
 
+  HabilitaBotoes;
+end;
+
+procedure TfrmMain.AtualizaTela(pRotacao: Boolean = false);
+begin
+  if pRotacao then begin
+    FBufferBitmap.Width := FRotatedBmp.Width;
+    FBufferBitmap.Height := FRotatedBmp.Height;
+
+    // Copia a imagem original limpa para o buffer
+    FBufferBitmap.Canvas.Draw(0, 0, FRotatedBmp);
+  end else begin
+    FBufferBitmap.Width := FModifiedBmp.Width;
+    FBufferBitmap.Height := FModifiedBmp.Height;
+
+    // Copia a imagem original limpa para o buffer
+    FBufferBitmap.Canvas.Draw(0, 0, FModifiedBmp);
+  end;
+
+// Desconsiderar PixelFormat. Se for pf1bit provoca erro.
+// FBufferBitmap.PixelFormat := FModifiedBmp.PixelFormat;
+
+  // Desenha as caixas no buffer
+  DrawBoxesOnCanvas(FBufferBitmap.Canvas);
+
+  // Atualiza o Image1 com o bitmap buffer
+  Image1.Picture.Bitmap.Assign(FBufferBitmap);
+  Image1.Invalidate;
 end;
 
 procedure TfrmMain.btnProcessarClick(Sender: TObject);
@@ -553,28 +585,15 @@ procedure TfrmMain.btnProcessarClick(Sender: TObject);
   btnProcessar.Enabled := False;
   btnSalvaTif.Enabled := False;
   Application.ProcessMessages;
-  if Assigned(FOriginalBitmap) then
-  begin
 
-    RotateBitmap(FOriginalBitmap, StrToInt(edtInclinacao.Text), FRotatedBmp);
+  RotateBitmap(FModifiedBmp, StrToInt(edtInclinacao.Text), FRotatedBmp);
 
-    FBufferBitmap.Width := FRotatedBmp.Width;
-    FBufferBitmap.Height := FRotatedBmp.Height;
-    FBufferBitmap.PixelFormat := pf24bit;
+  Estado := isRotated;
 
-    // Copia a imagem original limpa para o buffer
-    FBufferBitmap.Canvas.Draw(0, 0, FRotatedBmp);
+  AtualizaTela(true);
 
-    // Desenha as caixas no buffer
-    DrawBoxesOnCanvas(FBufferBitmap.Canvas);
+  btnSalvaTif.Enabled := True;
 
-    // Atualiza o Image1 com o bitmap buffer
-    Image1.Picture.Bitmap.Assign(FBufferBitmap);
-    Image1.Invalidate;
-
-    btnSalvaTif.Enabled := True;
-
-  end;
   Processando := False;
   edtInclinacao.Enabled := True;
   btnProcessar.Enabled := True;
@@ -602,15 +621,75 @@ begin
   ImageEnIO := TImageEnIO.Create(nil);
   try
     // Salva o bitmap rotacionado em TIFF
-    ImageEnIO.CreateFromBitmap(FRotatedBmp);
+    if Estado = isRotated then
+      ImageEnIO.CreateFromBitmap(FRotatedBmp)
+    else
+      ImageEnIO.CreateFromBitmap(FModifiedBmp);
     ImageEnIO.SaveToFile(FullPath);
   finally
     ImageEnIO.Free;
   end;
 
-  FOriginalBitmap.Assign(FRotatedBmp);
+  if Estado = isRotated then
+    FOriginalBitmap.Assign(FRotatedBmp)
+  else
+    FOriginalBitmap.Assign(FModifiedBmp);
+
   btnSalvaTif.Enabled := False;
   edtInclinacao.Clear;
+end;
+
+procedure TfrmMain.btnCinzaClick(Sender: TObject);
+var
+  Proc: TImageEnProc;
+begin
+  Proc := TImageEnProc.Create(nil);
+  try
+    FModifiedBmp.Assign(FOriginalBitmap);
+
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+
+    // Converte para escala de cinza
+    Proc.ConvertToGray;
+  finally
+    Proc.Free;
+  end;
+
+  Estado := is8Bit;
+
+  AtualizaTela;
+  HabilitaBotoes;
+end;
+
+procedure TfrmMain.btnBinarioClick(Sender: TObject);
+var
+  Proc: TImageEnProc;
+begin
+  Proc := TImageEnProc.Create(nil);
+  try
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+
+    // Converte para binário (preto e branco)
+    Proc.ConvertToBWThreshold();
+  finally
+    Proc.Free;
+  end;
+
+  Estado := is1Bit;
+
+  AtualizaTela;
+  HabilitaBotoes;
+end;
+
+procedure TfrmMain.HabilitaBotoes;
+begin
+  btnCinza.Enabled := Estado in [is24Bit];
+  btnBinario.Enabled := Estado in [is8Bit];
+  edtInclinacao.Enabled := Estado in [is1Bit];
+  btnProcessar.Enabled := Estado in [is1Bit];
+//  btnSalvaTif.Enabled := Estado in [is1Bit];
 end;
 
 end.

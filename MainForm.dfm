@@ -75,19 +75,19 @@ object frmMain: TfrmMain
       1008
       129)
     object Label1: TLabel
-      Left = 24
-      Top = 15
+      Left = 19
+      Top = 47
       Width = 49
       Height = 13
       Caption = 'Inclina'#231#227'o'
     end
     object Memo1: TMemo
-      Left = 112
+      Left = 200
       Top = 8
       Width = 449
       Height = 113
       ReadOnly = True
-      TabOrder = 3
+      TabOrder = 5
     end
     object btnIncrease: TButton
       Left = 920
@@ -96,7 +96,7 @@ object frmMain: TfrmMain
       Height = 25
       Anchors = [akTop, akRight]
       Caption = 'Aumentar'
-      TabOrder = 5
+      TabOrder = 7
       OnClick = btnIncreaseClick
     end
     object btnDecrease: TButton
@@ -106,43 +106,64 @@ object frmMain: TfrmMain
       Height = 25
       Anchors = [akTop, akRight]
       Caption = 'Diminuir'
-      TabOrder = 6
+      TabOrder = 8
       OnClick = btnDecreaseClick
     end
     object btnSaveBox: TButton
-      Left = 574
+      Left = 662
       Top = 16
       Width = 75
       Height = 25
       Caption = 'Salvar Box'
-      TabOrder = 4
+      TabOrder = 6
       OnClick = btnSaveBoxClick
     end
     object edtInclinacao: TEdit
-      Left = 24
-      Top = 31
+      Left = 19
+      Top = 63
       Width = 65
       Height = 21
-      TabOrder = 0
+      TabOrder = 2
       OnKeyPress = edtInclinacaoKeyPress
     end
     object btnProcessar: TButton
-      Left = 24
-      Top = 55
+      Left = 104
+      Top = 59
       Width = 75
       Height = 25
       Caption = 'Processar'
-      TabOrder = 1
+      Enabled = False
+      TabOrder = 3
       OnClick = btnProcessarClick
     end
     object btnSalvaTif: TButton
-      Left = 24
-      Top = 87
+      Left = 104
+      Top = 91
       Width = 75
       Height = 25
       Caption = 'Salvar TIF'
-      TabOrder = 2
+      TabOrder = 4
       OnClick = btnSalvaTifClick
+    end
+    object btnCinza: TButton
+      Left = 19
+      Top = 16
+      Width = 75
+      Height = 25
+      Caption = 'Cinza'
+      Enabled = False
+      TabOrder = 0
+      OnClick = btnCinzaClick
+    end
+    object btnBinario: TButton
+      Left = 104
+      Top = 16
+      Width = 75
+      Height = 25
+      Caption = 'Bin'#225'rio'
+      Enabled = False
+      TabOrder = 1
+      OnClick = btnBinarioClick
     end
   end
   object SaveDialog1: TSaveDialog
