@@ -2,6 +2,8 @@
 
 O objetivo principal do programa é **gerar arquivos `.box` a partir de imagens `.tif` e arquivos `gt.txt`**, permitindo ao usuário definir e ajustar finamente as coordenadas das caixas (bounding boxes) sobre as imagens. Essas caixas são usadas para marcar regiões específicas nas imagens TIFF, geralmente para tarefas como reconhecimento óptico de caracteres (OCR) ou anotação de dados.
 
+![alt text](sample.png "Exemplo")
+
 ### Funcionalidades principais:
 
 - **Leitura de imagens TIFF**: o programa carrega imagens `.tif`, incluindo aquelas com orientações variadas, garantindo a exibição correta para facilitar a marcação.
