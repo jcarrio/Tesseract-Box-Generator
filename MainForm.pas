@@ -4,7 +4,10 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtCtrls, StdCtrls, ComCtrls;
+  Dialogs, ExtCtrls, StdCtrls, ComCtrls,
+  ToolWin,
+  ImgList,
+  Menus;
 
 type
   TBoxRecord = record
@@ -19,20 +22,29 @@ type
     ScrollBox1: TScrollBox;
     Image1: TImage;
     Panel1: TPanel;
+    ListBox1: TListBox;
+    ToolBar1: TToolBar;
+    tbOpen: TToolButton;
+    tbSeparator1: TToolButton;
+    tbBoxPlus: TToolButton;
+    tbBoxMinus: TToolButton;
+    tbSeparator2: TToolButton;
+    tbGrayscale: TToolButton;
+    tbBinary: TToolButton;
+    tbRotate: TToolButton;
+    tbSeparator3: TToolButton;
+    tbSave: TToolButton;
     Panel2: TPanel;
     Memo1: TMemo;
-    ListBox1: TListBox;
-    btnPasta: TButton;
-    btnIncrease: TButton;
-    btnDecrease: TButton;
     btnSaveBox: TButton;
-    SaveDialog1: TSaveDialog;
-    Label1: TLabel;
-    edtInclinacao: TEdit;
-    btnProcessar: TButton;
-    btnSalvaTif: TButton;
-    btnCinza: TButton;
-    btnBinario: TButton;
+    PopupMenu1: TPopupMenu;
+    Rotacionar901: TMenuItem;
+    Rotacionar902: TMenuItem;
+    Rotacionar1801: TMenuItem;
+    N1: TMenuItem;
+    Rotaopersonalizada1: TMenuItem;
+    StatusBar1: TStatusBar;
+    ImageList1: TImageList;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -42,16 +54,19 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure btnIncreaseClick(Sender: TObject);
-    procedure btnDecreaseClick(Sender: TObject);
     procedure Image1Click(Sender: TObject);
-    procedure btnPastaClick(Sender: TObject);
     procedure ListBox1Click(Sender: TObject);
-    procedure btnProcessarClick(Sender: TObject);
     procedure edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
-    procedure btnSalvaTifClick(Sender: TObject);
-    procedure btnCinzaClick(Sender: TObject);
-    procedure btnBinarioClick(Sender: TObject);
+    procedure tbOpenClick(Sender: TObject);
+    procedure tbGrayscaleClick(Sender: TObject);
+    procedure tbBinaryClick(Sender: TObject);
+    procedure tbSaveClick(Sender: TObject);
+    procedure Rotacionar901Click(Sender: TObject);
+    procedure Rotacionar902Click(Sender: TObject);
+    procedure Rotacionar1801Click(Sender: TObject);
+    procedure Rotaopersonalizada1Click(Sender: TObject);
+    procedure tbBoxPlusClick(Sender: TObject);
+    procedure tbBoxMinusClick(Sender: TObject);
   private
     Boxes: array of TBoxRecord;
     SelectedBox: Integer;
@@ -71,7 +86,9 @@ type
     procedure ShowBoxesInfo;
     procedure LoadBoxesFromBox(const FileName: string);
     procedure AtualizaTela(pRotacao: Boolean = false);
-    procedure HabilitaBotoes;
+    procedure Rotacionar(pAngle: Integer);
+    procedure SetupToolBar;
+    procedure UpdateToolBarState;
   public
   end;
 
@@ -83,6 +100,16 @@ implementation
 {$R *.dfm}
 
 uses FileCtrl, imageenio, StrUtils, Math, imageenproc, hyieutils;
+
+function GetStateDescription(State: TImageState): string;
+begin
+  case State of
+    is24Bit: Result := 'Colorida';
+    is8Bit: Result := 'Escala de Cinza';
+    is1Bit: Result := 'Binária';
+    isRotated: Result := 'Rotacionada';
+  end;
+end;
 
 procedure RotateBitmap(const Src: TBitmap; Angle: Single; var Dest: TBitmap);
 var
@@ -100,6 +127,97 @@ begin
   finally
     Proc.Free;
   end;
+end;
+
+procedure TfrmMain.Rotacionar(pAngle: Integer);
+begin
+  Processando := True;
+
+  RotateBitmap(FModifiedBmp, pAngle, FRotatedBmp);
+
+  Estado := isRotated;
+
+  AtualizaTela(true);
+
+  Processando := False;
+
+  // Atualizar estado
+  tbSave.Enabled := True;
+  UpdateToolBarState;
+end;
+
+// Configuração da ToolBar via Designer
+procedure TfrmMain.SetupToolBar;
+begin
+  // Configurações gerais da ToolBar
+  ToolBar1.ShowCaptions := True;  // Mostrar texto nos botões
+  ToolBar1.ButtonHeight := 32;
+  ToolBar1.ButtonWidth := 32;
+  ToolBar1.Height := 41;
+  ToolBar1.Images := ImageList1;  // Associar ImageList
+  ToolBar1.Flat := True;          // Visual moderno
+  ToolBar1.Transparent := True;
+  ToolBar1.Wrapable := True;      // Quebrar linha se necessário
+  
+  // Configurar botões individuais
+  // tbOpen
+  tbOpen.Caption := 'Pasta';
+  tbOpen.Hint := 'Selecionar pasta com imagens (Ctrl+O)';
+  tbOpen.ImageIndex := 0;  // Índice no ImageList
+  tbOpen.ShowHint := True;
+  
+  // Separador 1
+  tbSeparator1.Style := tbsSeparator;
+  tbSeparator1.Width := 8;
+  
+  // tbGrayscale
+  tbGrayscale.Caption := 'Cinza';
+  tbGrayscale.Hint := 'Converter para escala de cinza';
+  tbGrayscale.ImageIndex := 3;
+  tbGrayscale.ShowHint := True;
+  tbGrayscale.Style := tbsCheck;  // Botão toggle
+  
+  // tbBinary
+  tbBinary.Caption := 'Binário';
+  tbBinary.Hint := 'Converter para preto e branco';
+  tbBinary.ImageIndex := 4;
+  tbBinary.ShowHint := True;
+  tbBinary.Enabled := False;  // Inicialmente desabilitado
+  
+  // tbRotate
+  tbRotate.Caption := 'Rotação';
+  tbRotate.Hint := 'Rotacionar imagem';
+  tbRotate.ImageIndex := 5;
+  tbRotate.ShowHint := True;
+  tbRotate.Style := tbsDropDown;  // Com dropdown
+  
+  // Separador 2
+  tbSeparator2.Style := tbsSeparator;
+
+  // tbSave
+  tbSave.Caption := 'Salvar';
+  tbSave.Hint := 'Salvar imagem processada (Ctrl+S)';
+  tbSave.ImageIndex := 6;
+  tbSave.ShowHint := True;
+  tbSave.Enabled := False;
+
+  // Separador 3
+  tbSeparator3.Style := tbsSeparator;
+
+  // tbBoxPlus
+  tbBoxPlus.Caption := 'Caixa +';
+  tbBoxPlus.Hint := 'Aumentar caixa (+)';
+  tbBoxPlus.ImageIndex := 1;
+  tbBoxPlus.ShowHint := True;
+
+  // tbBoxMinus
+  tbBoxMinus.Caption := 'Caixa -';
+  tbBoxMinus.Hint := 'Diminuir caixa (-)';
+  tbBoxMinus.ImageIndex := 2;
+  tbBoxMinus.ShowHint := True;
+
+  // Atualizar estado inicial
+  UpdateToolBarState;
 end;
 
 procedure TfrmMain.ShowBoxesInfo;
@@ -139,7 +257,8 @@ begin
   FModifiedBmp := TBitmap.Create;
   FRotatedBmp := TBitmap.Create;
   Processando := False;
-  btnSalvaTif.Enabled := False;
+
+  SetupToolBar;
 end;
 
 procedure TfrmMain.LoadBoxesFromBox(const FileName: string);
@@ -342,36 +461,6 @@ begin
   FOriginalBitmap.Free;
 end;
 
-procedure TfrmMain.btnIncreaseClick(Sender: TObject);
-begin
-  if SelectedBox >= 0 then
-  begin
-    with Boxes[SelectedBox] do
-    begin
-      Right := Right + 5;
-      Bottom := Bottom + 5;
-    end;
-    UpdateImageCanvas;
-    ShowBoxesInfo;
-  end;
-end;
-
-procedure TfrmMain.btnDecreaseClick(Sender: TObject);
-begin
-  if SelectedBox >= 0 then
-  begin
-    with Boxes[SelectedBox] do
-    begin
-      if (Right - Left) > 10 then
-        Right := Right - 5;
-      if (Bottom - Top) > 10 then
-        Bottom := Bottom - 5;
-    end;
-    UpdateImageCanvas;
-    ShowBoxesInfo;
-  end;
-end;
-
 procedure TfrmMain.Image1Click(Sender: TObject);
 var
   boxWidth, boxHeight: Integer;
@@ -397,48 +486,6 @@ begin
 
   UpdateImageCanvas;
   ShowBoxesInfo;
-end;
-
-procedure TfrmMain.btnPastaClick(Sender: TObject);
-var
-  SearchRec: TSearchRec;
-  FileName: string;
-  SelectedDirectory: string;
-  numero: integer;
-
-  function RemoveNonNumericChars(const s: string): integer;
-  var
-    resp: String;
-    i: integer;
-  begin
-    resp := '';
-    for i := 1 to Length(s) do
-      if s[i] in ['0'..'9'] then
-        resp := resp + s[i];
-    result := StrToIntDef(resp,0);
-  end;
-
-begin
-  if SelectDirectory('Selecione uma pasta', 'D:\Treinamento', SelectedDirectory) then
-  begin
-    FolderPath := IncludeTrailingPathDelimiter(SelectedDirectory);
-    ListBox1.Items.Clear;
-
-    if FindFirst(FolderPath + '*.tif', faAnyFile, SearchRec) = 0 then
-    begin
-      repeat
-        FileName := SearchRec.Name;
-        numero := RemoveNonNumericChars(FileName);
-        ListBox1.Items.Add(Format('%3.3d',[Numero])+ ';' +FileName);
-      until FindNext(SearchRec) <> 0;
-      FindClose(SearchRec);
-    end;
-
-    if ListBox1.Items.Count = 0 then
-      ShowMessage('Nenhum arquivo .tif encontrado na pasta selecionada.')
-    else
-      ListBox1.Sorted := True;
-  end;
 end;
 
 procedure TfrmMain.ListBox1Click(Sender: TObject);
@@ -541,7 +588,7 @@ begin
   UpdateImageCanvas;
   ShowBoxesInfo; // opcional: mostrar lista de caixas
 
-  HabilitaBotoes;
+  UpdateToolBarState;
 end;
 
 procedure TfrmMain.AtualizaTela(pRotacao: Boolean = false);
@@ -571,34 +618,6 @@ begin
   Image1.Invalidate;
 end;
 
-procedure TfrmMain.btnProcessarClick(Sender: TObject);
-begin
-  if (Processando)or(edtInclinacao.Text = '')or(ListBox1.ItemIndex < 0) then exit;
-  if (StrToInt(edtInclinacao.Text) < -360)or(StrToInt(edtInclinacao.Text) > 360) then
-  begin
-    ShowMessage('Valor de grau de inclinação inválido!');
-    exit;
-  end;
-
-  Processando := True;
-  edtInclinacao.Enabled := False;
-  btnProcessar.Enabled := False;
-  btnSalvaTif.Enabled := False;
-  Application.ProcessMessages;
-
-  RotateBitmap(FModifiedBmp, StrToInt(edtInclinacao.Text), FRotatedBmp);
-
-  Estado := isRotated;
-
-  AtualizaTela(true);
-
-  btnSalvaTif.Enabled := True;
-
-  Processando := False;
-  edtInclinacao.Enabled := True;
-  btnProcessar.Enabled := True;
-end;
-
 procedure TfrmMain.edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
 const
   chars = ['0'..'9','-',#8];
@@ -607,9 +626,107 @@ procedure TfrmMain.edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
     Key := #0;
 end;
 
-procedure TfrmMain.btnSalvaTifClick(Sender: TObject);
+procedure TfrmMain.tbOpenClick(Sender: TObject);
 var
-  SelectedFile, FullPath: string;
+  SearchRec: TSearchRec;
+  FileName: string;
+  SelectedDirectory: string;
+  numero: integer;
+
+  function RemoveNonNumericChars(const s: string): integer;
+  var
+    resp: String;
+    i: integer;
+  begin
+    resp := '';
+    for i := 1 to Length(s) do
+      if s[i] in ['0'..'9'] then
+        resp := resp + s[i];
+    result := StrToIntDef(resp,0);
+  end;
+
+begin
+  if SelectDirectory('Selecione uma pasta', 'D:\Treinamento', SelectedDirectory) then
+  begin
+    FolderPath := IncludeTrailingPathDelimiter(SelectedDirectory);
+    ListBox1.Items.Clear;
+
+    if FindFirst(FolderPath + '*.tif', faAnyFile, SearchRec) = 0 then
+    begin
+      repeat
+        FileName := SearchRec.Name;
+        numero := RemoveNonNumericChars(FileName);
+        ListBox1.Items.Add(Format('%3.3d',[Numero])+ ';' +FileName);
+      until FindNext(SearchRec) <> 0;
+      FindClose(SearchRec);
+    end;
+
+    if ListBox1.Items.Count = 0 then
+      ShowMessage('Nenhum arquivo .tif encontrado na pasta selecionada.')
+    else
+      ListBox1.Sorted := True;
+  end;
+
+  // Atualizar estado da toolbar após carregar
+  UpdateToolBarState;
+end;
+
+procedure TfrmMain.tbGrayscaleClick(Sender: TObject);
+var
+  Proc: TImageEnProc;
+begin
+  Proc := TImageEnProc.Create(nil);
+  try
+    FModifiedBmp.Assign(FOriginalBitmap);
+
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+//    Proc.DoPreviews()
+
+    // Converte para escala de cinza
+    Proc.ConvertToGray;
+  finally
+    Proc.Free;
+  end;
+
+  Estado := is8Bit;
+
+  AtualizaTela;
+
+  // Atualizar estado - habilitar próximo passo
+  tbBinary.Enabled := True;
+  tbGrayscale.Down := True;  // Marcar como pressionado
+
+  UpdateToolBarState;
+end;
+
+procedure TfrmMain.tbBinaryClick(Sender: TObject);
+var
+  Proc: TImageEnProc;
+begin
+  Proc := TImageEnProc.Create(nil);
+  try
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+
+    // Converte para binário (preto e branco)
+    Proc.ConvertToBWThreshold();
+  finally
+    Proc.Free;
+  end;
+
+  Estado := is1Bit;
+
+  AtualizaTela;
+
+  // Atualizar estado
+  tbRotate.Enabled := True;
+  UpdateToolBarState;
+end;
+
+procedure TfrmMain.tbSaveClick(Sender: TObject);
+var
+  SelectedFile, FullPath: string;
   ImageEnIO: TImageEnIO;
 begin
 
@@ -635,61 +752,120 @@ begin
   else
     FOriginalBitmap.Assign(FModifiedBmp);
 
-  btnSalvaTif.Enabled := False;
-  edtInclinacao.Clear;
+  UpdateToolBarState;
 end;
 
-procedure TfrmMain.btnCinzaClick(Sender: TObject);
-var
-  Proc: TImageEnProc;
-begin
-  Proc := TImageEnProc.Create(nil);
-  try
-    FModifiedBmp.Assign(FOriginalBitmap);
-
-    // Carrega a imagem no ImageEnProc
-    Proc.CreateFromBitmap(FModifiedBmp);
-
-    // Converte para escala de cinza
-    Proc.ConvertToGray;
-  finally
-    Proc.Free;
-  end;
-
-  Estado := is8Bit;
-
-  AtualizaTela;
-  HabilitaBotoes;
-end;
-
-procedure TfrmMain.btnBinarioClick(Sender: TObject);
-var
-  Proc: TImageEnProc;
-begin
-  Proc := TImageEnProc.Create(nil);
-  try
-    // Carrega a imagem no ImageEnProc
-    Proc.CreateFromBitmap(FModifiedBmp);
-
-    // Converte para binário (preto e branco)
-    Proc.ConvertToBWThreshold();
-  finally
-    Proc.Free;
-  end;
-
-  Estado := is1Bit;
-
-  AtualizaTela;
-  HabilitaBotoes;
-end;
-
-procedure TfrmMain.HabilitaBotoes;
+procedure TfrmMain.UpdateToolBarState;
 begin
-  btnCinza.Enabled := Estado in [is24Bit];
-  btnBinario.Enabled := Estado in [is8Bit];
-  edtInclinacao.Enabled := Estado in [is1Bit];
-  btnProcessar.Enabled := Estado in [is1Bit];
-//  btnSalvaTif.Enabled := Estado in [is1Bit];
+  // Baseado no seu enum TImageState
+  case Estado of
+    is24Bit:
+    begin
+      tbGrayscale.Enabled := True;
+      tbBinary.Enabled := False;
+      tbRotate.Enabled := False;
+      tbSave.Enabled := False;
+    end;
+    
+    is8Bit:
+    begin
+      tbGrayscale.Enabled := False;
+      tbGrayscale.Down := True;
+      tbBinary.Enabled := True;
+      tbRotate.Enabled := False;
+      tbSave.Enabled := False;
+    end;
+    
+    is1Bit:
+    begin
+      tbGrayscale.Down := True;
+      tbBinary.Enabled := False;
+      tbRotate.Enabled := True;
+      tbSave.Enabled := False;
+    end;
+    
+    isRotated:
+    begin
+      tbSave.Enabled := True;
+    end;
+  end;
+
+  // Atualizar StatusBar com informações
+  if Assigned(StatusBar1) then
+  begin
+    StatusBar1.Panels[0].Text := Format('Estado: %s', [GetStateDescription(Estado)]);
+    StatusBar1.Panels[1].Text := Format('Imagem: %d x %d', [Image1.Width, Image1.Height]);
+  end;
+end;
+
+procedure TfrmMain.Rotacionar901Click(Sender: TObject);
+begin
+  if ListBox1.ItemIndex < 0 then exit;
+  
+  Rotacionar(-90);
+end;
+
+procedure TfrmMain.Rotacionar902Click(Sender: TObject);
+begin
+  if ListBox1.ItemIndex < 0 then exit;
+
+  Rotacionar(90);
+end;
+
+procedure TfrmMain.Rotacionar1801Click(Sender: TObject);
+begin
+  if ListBox1.ItemIndex < 0 then exit;
+
+  Rotacionar(180);
+end;
+
+procedure TfrmMain.Rotaopersonalizada1Click(Sender: TObject);
+var
+  Angle: string;
+begin
+  if ListBox1.ItemIndex < 0 then exit;
+
+  Angle := InputBox('Rotação Personalizada', 'Digite o ângulo (-360 a 360):', '0');
+  if (Angle = '') or (StrToIntDef(Angle, 999) = 999) then
+    exit;
+
+  if (StrToInt(Angle) < -360)or(StrToInt(Angle) > 360) then
+  begin
+    ShowMessage('Valor de grau de inclinação inválido!');
+    exit;
+  end;
+
+  Rotacionar(StrToInt(Angle));
+end;
+
+procedure TfrmMain.tbBoxPlusClick(Sender: TObject);
+begin
+  if SelectedBox >= 0 then
+  begin
+    with Boxes[SelectedBox] do
+    begin
+      Right := Right + 5;
+      Bottom := Bottom + 5;
+    end;
+    UpdateImageCanvas;
+    ShowBoxesInfo;
+  end;
+end;
+
+procedure TfrmMain.tbBoxMinusClick(Sender: TObject);
+begin
+  if SelectedBox >= 0 then
+  begin
+    with Boxes[SelectedBox] do
+    begin
+      if (Right - Left) > 10 then
+        Right := Right - 5;
+      if (Bottom - Top) > 10 then
+        Bottom := Bottom - 5;
+    end;
+    UpdateImageCanvas;
+    ShowBoxesInfo;
+  end;
 end;
 
 end.
