@@ -538,6 +538,7 @@ begin
     if texto = '' then
       exit;
     AssignFile(f, arqgt);
+    Rewrite(f);
     Writeln(f, texto);
     CloseFile(f);
   end;
@@ -548,20 +549,20 @@ begin
     if SL.Text = '' then
       raise Exception.Create('Erro na tentativa de carregar o texto!');
     // Concatenar todas as linhas para uma única string de caracteres
-    text := SL.Text;
-    text := StringReplace(text, #13#10, '', [rfReplaceAll]);
-    text := StringReplace(text, #10, '', [rfReplaceAll]);
-    SetLength(Boxes, Length(text));
+    texto := SL.Text;
+    texto := StringReplace(texto, #13#10, '', [rfReplaceAll]);
+    texto := StringReplace(texto, #10, '', [rfReplaceAll]);
+    SetLength(Boxes, Length(texto));
 
     // Definir tamanho padrão da caixa (ajuste conforme necessário)
     boxWidth := 75;
     boxHeight := 85;
-    x := 1800; // margem inicial X
-    y := 700; // margem inicial Y
+    x := 10; // margem inicial X
+    y := 10; // margem inicial Y
 
-    for i := 1 to Length(text) do
+    for i := 1 to Length(texto) do
     begin
-      c := text[i];
+      c := texto[i];
       Boxes[i-1].Character := c;
       Boxes[i-1].Left := x;
       Boxes[i-1].Top := y;
