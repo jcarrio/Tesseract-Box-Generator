@@ -183,31 +183,31 @@ begin
   // tbGrayscale
   tbGrayscale.Caption := 'Cinza';
   tbGrayscale.Hint := 'Converter para escala de cinza';
-  tbGrayscale.ImageIndex := 3;
+  tbGrayscale.ImageIndex := 1;
   tbGrayscale.ShowHint := True;
   tbGrayscale.Style := tbsCheck;  // Botão toggle
-  
+
   // tbBinary
   tbBinary.Caption := 'Binário';
   tbBinary.Hint := 'Converter para preto e branco';
-  tbBinary.ImageIndex := 4;
+  tbBinary.ImageIndex := 2;
   tbBinary.ShowHint := True;
   tbBinary.Enabled := False;  // Inicialmente desabilitado
-  
+
   // tbRotate
   tbRotate.Caption := 'Rotação';
   tbRotate.Hint := 'Rotacionar imagem';
-  tbRotate.ImageIndex := 5;
+  tbRotate.ImageIndex := 3;
   tbRotate.ShowHint := True;
   tbRotate.Style := tbsDropDown;  // Com dropdown
-  
+
   // Separador 2
   tbSeparator2.Style := tbsSeparator;
 
   // tbSave
   tbSave.Caption := 'Salvar';
   tbSave.Hint := 'Salvar imagem processada (Ctrl+S)';
-  tbSave.ImageIndex := 6;
+  tbSave.ImageIndex := 4;
   tbSave.ShowHint := True;
   tbSave.Enabled := False;
 
@@ -217,25 +217,25 @@ begin
   // tbWidthPlus
   tbWidthPlus.Caption := 'Largura +';
   tbWidthPlus.Hint := 'Aumentar largura (+)';
-  tbWidthPlus.ImageIndex := 1;
+  tbWidthPlus.ImageIndex := 5;
   tbWidthPlus.ShowHint := True;
 
   // tbWidthMinus
   tbWidthMinus.Caption := 'Largura -';
   tbWidthMinus.Hint := 'Diminuir largura (-)';
-  tbWidthMinus.ImageIndex := 2;
+  tbWidthMinus.ImageIndex := 6;
   tbWidthMinus.ShowHint := True;
 
   // tbHeightPlus
   tbHeightPlus.Caption := 'Altura +';
   tbHeightPlus.Hint := 'Aumentar altura (+)';
-  tbHeightPlus.ImageIndex := 1;
+  tbHeightPlus.ImageIndex := 7;
   tbHeightPlus.ShowHint := True;
 
   // tbHeightMinus
   tbHeightMinus.Caption := 'Altura -';
   tbHeightMinus.Hint := 'Diminuir altura (-)';
-  tbHeightMinus.ImageIndex := 2;
+  tbHeightMinus.ImageIndex := 8;
   tbHeightMinus.ShowHint := True;
 
   // Atualizar estado inicial
