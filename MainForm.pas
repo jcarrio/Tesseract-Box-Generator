@@ -7,7 +7,8 @@ uses
   Dialogs, ExtCtrls, StdCtrls, ComCtrls,
   ToolWin,
   ImgList,
-  Menus;
+  Menus,
+  Grids;
 
 type
   TBoxRecord = record
@@ -26,8 +27,8 @@ type
     ToolBar1: TToolBar;
     tbOpen: TToolButton;
     tbSeparator1: TToolButton;
-    tbBoxPlus: TToolButton;
-    tbBoxMinus: TToolButton;
+    tbWidthPlus: TToolButton;
+    tbWidthMinus: TToolButton;
     tbSeparator2: TToolButton;
     tbGrayscale: TToolButton;
     tbBinary: TToolButton;
@@ -35,7 +36,6 @@ type
     tbSeparator3: TToolButton;
     tbSave: TToolButton;
     Panel2: TPanel;
-    Memo1: TMemo;
     btnSaveBox: TButton;
     PopupMenu1: TPopupMenu;
     Rotacionar901: TMenuItem;
@@ -45,6 +45,9 @@ type
     Rotaopersonalizada1: TMenuItem;
     StatusBar1: TStatusBar;
     ImageList1: TImageList;
+    StringGrid1: TStringGrid;
+    tbHeightPlus: TToolButton;
+    tbHeightMinus: TToolButton;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -65,8 +68,14 @@ type
     procedure Rotacionar902Click(Sender: TObject);
     procedure Rotacionar1801Click(Sender: TObject);
     procedure Rotaopersonalizada1Click(Sender: TObject);
-    procedure tbBoxPlusClick(Sender: TObject);
-    procedure tbBoxMinusClick(Sender: TObject);
+    procedure tbWidthPlusClick(Sender: TObject);
+    procedure tbWidthMinusClick(Sender: TObject);
+    procedure StringGrid1SetEditText(Sender: TObject; ACol, ARow: Integer;
+      const Value: String);
+    procedure StringGrid1SelectCell(Sender: TObject; ACol, ARow: Integer;
+      var CanSelect: Boolean);
+    procedure tbHeightPlusClick(Sender: TObject);
+    procedure tbHeightMinusClick(Sender: TObject);
   private
     Boxes: array of TBoxRecord;
     SelectedBox: Integer;
@@ -83,12 +92,13 @@ type
     procedure SaveBoxesToBox(const FileName: string);
     procedure DrawBoxesOnCanvas(ACanvas: TCanvas);
     procedure UpdateImageCanvas;
-    procedure ShowBoxesInfo;
+//    procedure ShowBoxesInfo;
     procedure LoadBoxesFromBox(const FileName: string);
     procedure AtualizaTela(pRotacao: Boolean = false);
     procedure Rotacionar(pAngle: Integer);
     procedure SetupToolBar;
     procedure UpdateToolBarState;
+    procedure ShowBoxesInGrid;
   public
   end;
 
@@ -204,22 +214,34 @@ begin
   // Separador 3
   tbSeparator3.Style := tbsSeparator;
 
-  // tbBoxPlus
-  tbBoxPlus.Caption := 'Caixa +';
-  tbBoxPlus.Hint := 'Aumentar caixa (+)';
-  tbBoxPlus.ImageIndex := 1;
-  tbBoxPlus.ShowHint := True;
+  // tbWidthPlus
+  tbWidthPlus.Caption := 'Largura +';
+  tbWidthPlus.Hint := 'Aumentar largura (+)';
+  tbWidthPlus.ImageIndex := 1;
+  tbWidthPlus.ShowHint := True;
 
-  // tbBoxMinus
-  tbBoxMinus.Caption := 'Caixa -';
-  tbBoxMinus.Hint := 'Diminuir caixa (-)';
-  tbBoxMinus.ImageIndex := 2;
-  tbBoxMinus.ShowHint := True;
+  // tbWidthMinus
+  tbWidthMinus.Caption := 'Largura -';
+  tbWidthMinus.Hint := 'Diminuir largura (-)';
+  tbWidthMinus.ImageIndex := 2;
+  tbWidthMinus.ShowHint := True;
+
+  // tbHeightPlus
+  tbHeightPlus.Caption := 'Altura +';
+  tbHeightPlus.Hint := 'Aumentar altura (+)';
+  tbHeightPlus.ImageIndex := 1;
+  tbHeightPlus.ShowHint := True;
+
+  // tbHeightMinus
+  tbHeightMinus.Caption := 'Altura -';
+  tbHeightMinus.Hint := 'Diminuir altura (-)';
+  tbHeightMinus.ImageIndex := 2;
+  tbHeightMinus.ShowHint := True;
 
   // Atualizar estado inicial
   UpdateToolBarState;
 end;
-
+{
 procedure TfrmMain.ShowBoxesInfo;
 var
   i: Integer;
@@ -241,7 +263,7 @@ begin
     Memo1.Lines.Add(line);
   end;
 end;
-
+}
 procedure SplitString(const S: string; const Delimiters: TSysCharSet; List: TStrings);
 begin
   List.Clear;
@@ -258,7 +280,31 @@ begin
   FRotatedBmp := TBitmap.Create;
   Processando := False;
 
+  StringGrid1.ColCount := 6;
+  StringGrid1.Cells[0, 0] := 'Caractere';
+  StringGrid1.Cells[1, 0] := 'Esquerda';
+  StringGrid1.Cells[2, 0] := 'Topo';
+  StringGrid1.Cells[3, 0] := 'Direita';
+  StringGrid1.Cells[4, 0] := 'Fundo';
+  StringGrid1.Cells[5, 0] := 'Página';
+
   SetupToolBar;
+end;
+
+procedure TfrmMain.ShowBoxesInGrid;
+var
+  i: Integer;
+begin
+  StringGrid1.RowCount := Length(Boxes) + 1; // +1 para o header
+  for i := 0 to High(Boxes) do
+  begin
+    StringGrid1.Cells[0, i+1] := Boxes[i].Character;
+    StringGrid1.Cells[1, i+1] := IntToStr(Boxes[i].Left);
+    StringGrid1.Cells[2, i+1] := IntToStr(Boxes[i].Top);
+    StringGrid1.Cells[3, i+1] := IntToStr(Boxes[i].Right);
+    StringGrid1.Cells[4, i+1] := IntToStr(Boxes[i].Bottom);
+    StringGrid1.Cells[5, i+1] := IntToStr(Boxes[i].Page);
+  end;
 end;
 
 procedure TfrmMain.LoadBoxesFromBox(const FileName: string);
@@ -450,7 +496,8 @@ procedure TfrmMain.Image1MouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   IsDragging := False;
-  ShowBoxesInfo;
+  //ShowBoxesInfo;
+  ShowBoxesInGrid;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -485,7 +532,8 @@ begin
   end;
 
   UpdateImageCanvas;
-  ShowBoxesInfo;
+  //ShowBoxesInfo;
+  ShowBoxesInGrid;
 end;
 
 procedure TfrmMain.ListBox1Click(Sender: TObject);
@@ -502,7 +550,7 @@ var
   f: TextFile;
 begin
   if ListBox1.ItemIndex < 0 then Exit;
-  Memo1.Clear;
+//  Memo1.Clear;
   
   SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
   FullPath := FolderPath + SelectedFile;
@@ -587,7 +635,8 @@ begin
     LoadBoxesFromBox(arqbox); // substitui as caixas pelas do .box
 
   UpdateImageCanvas;
-  ShowBoxesInfo; // opcional: mostrar lista de caixas
+//  ShowBoxesInfo; // opcional: mostrar lista de caixas
+  ShowBoxesInGrid;
 
   UpdateToolBarState;
 end;
@@ -839,33 +888,85 @@ begin
   Rotacionar(StrToInt(Angle));
 end;
 
-procedure TfrmMain.tbBoxPlusClick(Sender: TObject);
+procedure TfrmMain.tbWidthPlusClick(Sender: TObject);
 begin
   if SelectedBox >= 0 then
   begin
     with Boxes[SelectedBox] do
-    begin
       Right := Right + 5;
-      Bottom := Bottom + 5;
-    end;
     UpdateImageCanvas;
-    ShowBoxesInfo;
+//    ShowBoxesInfo;
+    ShowBoxesInGrid;
   end;
 end;
 
-procedure TfrmMain.tbBoxMinusClick(Sender: TObject);
+procedure TfrmMain.tbWidthMinusClick(Sender: TObject);
 begin
   if SelectedBox >= 0 then
   begin
     with Boxes[SelectedBox] do
-    begin
       if (Right - Left) > 10 then
         Right := Right - 5;
+    UpdateImageCanvas;
+//    ShowBoxesInfo;
+    ShowBoxesInGrid;
+  end;
+end;
+
+procedure TfrmMain.StringGrid1SetEditText(Sender: TObject; ACol,
+  ARow: Integer; const Value: String);
+var
+  idx: Integer;
+begin
+  idx := ARow - 1; // porque a linha 0 é header
+  if (idx < 0) or (idx > High(Boxes)) then Exit;
+
+  case ACol of
+    0: Boxes[idx].Character := Value[1];
+    1: Boxes[idx].Left := StrToIntDef(Value, Boxes[idx].Left);
+    2: Boxes[idx].Top := StrToIntDef(Value, Boxes[idx].Top);
+    3: Boxes[idx].Right := StrToIntDef(Value, Boxes[idx].Right);
+    4: Boxes[idx].Bottom := StrToIntDef(Value, Boxes[idx].Bottom);
+    5: Boxes[idx].Page := StrToIntDef(Value, Boxes[idx].Page);
+  end;
+  UpdateImageCanvas; // redesenha as caixas com os novos valores
+end;
+
+procedure TfrmMain.StringGrid1SelectCell(Sender: TObject; ACol,
+  ARow: Integer; var CanSelect: Boolean);
+begin
+  // Verifica se não é o header (linha 0)
+  if ARow > 0 then
+  begin
+    SelectedBox := ARow - 1; // Supondo que SelectedBox é o índice no array Boxes
+    // Atualize a interface ou faça outras ações necessárias
+    // Por exemplo, redesenhar a seleção ou mostrar detalhes do box selecionado
+    UpdateImageCanvas; // redesenha as caixas com os novos valores
+  end;
+end;
+
+procedure TfrmMain.tbHeightPlusClick(Sender: TObject);
+begin
+  if SelectedBox >= 0 then
+  begin
+    with Boxes[SelectedBox] do
+      Bottom := Bottom + 5;
+    UpdateImageCanvas;
+//    ShowBoxesInfo;
+    ShowBoxesInGrid;
+  end;
+end;
+
+procedure TfrmMain.tbHeightMinusClick(Sender: TObject);
+begin
+  if SelectedBox >= 0 then
+  begin
+    with Boxes[SelectedBox] do
       if (Bottom - Top) > 10 then
         Bottom := Bottom - 5;
-    end;
     UpdateImageCanvas;
-    ShowBoxesInfo;
+//    ShowBoxesInfo;
+    ShowBoxesInGrid;
   end;
 end;
 
