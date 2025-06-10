@@ -17,8 +17,6 @@ type
     Page: Integer;
   end;
 
-  TImageState = (is24Bit, is8Bit, is1Bit, isRotated);
-
   TfrmMain = class(TForm)
     ScrollBox1: TScrollBox;
     Image1: TImage;
@@ -48,11 +46,15 @@ type
     StringGrid1: TStringGrid;
     tbHeightPlus: TToolButton;
     tbHeightMinus: TToolButton;
-    tbDefaultBox: TToolButton;
+    tbApply: TToolButton;
     ImageList2: TImageList;
     tbUndo: TToolButton;
     tbRedo: TToolButton;
     ToolButton3: TToolButton;
+    TrackBarThreshold: TTrackBar;
+    LabelThresholdValue: TLabel;
+    TrackBarRotate: TTrackBar;
+    LabelRotateValue: TLabel;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -67,12 +69,7 @@ type
     procedure edtInclinacaoKeyPress(Sender: TObject; var Key: Char);
     procedure tbOpenClick(Sender: TObject);
     procedure tbGrayscaleClick(Sender: TObject);
-    procedure tbBinaryClick(Sender: TObject);
     procedure tbSaveClick(Sender: TObject);
-    procedure Rotacionar901Click(Sender: TObject);
-    procedure Rotacionar902Click(Sender: TObject);
-    procedure Rotacionar1801Click(Sender: TObject);
-    procedure Rotaopersonalizada1Click(Sender: TObject);
     procedure tbWidthPlusClick(Sender: TObject);
     procedure tbWidthMinusClick(Sender: TObject);
     procedure StringGrid1SetEditText(Sender: TObject; ACol, ARow: Integer;
@@ -81,6 +78,13 @@ type
       var CanSelect: Boolean);
     procedure tbHeightPlusClick(Sender: TObject);
     procedure tbHeightMinusClick(Sender: TObject);
+    procedure tbUndoClick(Sender: TObject);
+    procedure tbRedoClick(Sender: TObject);
+    procedure tbApplyClick(Sender: TObject);
+    procedure tbBinaryClick(Sender: TObject);
+    procedure tbRotateClick(Sender: TObject);
+    procedure TrackBarThresholdChange(Sender: TObject);
+    procedure TrackBarRotateChange(Sender: TObject);
   private
     Boxes: array of TBoxRecord;
     SelectedBox: Integer;
@@ -89,21 +93,28 @@ type
     FBufferBitmap: TBitmap;
     FOriginalBitmap: TBitmap;
     FModifiedBmp: TBitmap;
-    FRotatedBmp: TBitmap;
     FolderPath: String;
-    Processando: Boolean;
-    Estado: TImageState;
+
+    FUndoList: array of TBitmap;
+    FRedoList: array of TBitmap;
+    MaxUndoSteps: Integer;
+    procedure PushUndoState;
+    procedure ClearRedoStates;
+    procedure Undo;
+    procedure Redo;
+    procedure ClearUndoStates;
+
     procedure DrawBoxes;
     procedure SaveBoxesToBox(const FileName: string);
     procedure DrawBoxesOnCanvas(ACanvas: TCanvas);
     procedure UpdateImageCanvas;
-//    procedure ShowBoxesInfo;
     procedure LoadBoxesFromBox(const FileName: string);
-    procedure AtualizaTela(pRotacao: Boolean = false);
-    procedure Rotacionar(pAngle: Integer);
+    procedure AtualizaTela;
     procedure SetupToolBar;
     procedure UpdateToolBarState;
     procedure ShowBoxesInGrid;
+    procedure DisableOtherButtons(ActiveButton: TToolButton);
+    procedure EnableAllButtons;
   public
   end;
 
@@ -115,16 +126,6 @@ implementation
 {$R *.dfm}
 
 uses FileCtrl, imageenio, StrUtils, Math, imageenproc, hyieutils;
-
-function GetStateDescription(State: TImageState): string;
-begin
-  case State of
-    is24Bit: Result := 'Colorida';
-    is8Bit: Result := 'Escala de Cinza';
-    is1Bit: Result := 'Binária';
-    isRotated: Result := 'Rotacionada';
-  end;
-end;
 
 procedure RotateBitmap(const Src: TBitmap; Angle: Single; var Dest: TBitmap);
 var
@@ -142,23 +143,6 @@ begin
   finally
     Proc.Free;
   end;
-end;
-
-procedure TfrmMain.Rotacionar(pAngle: Integer);
-begin
-  Processando := True;
-
-  RotateBitmap(FModifiedBmp, pAngle, FRotatedBmp);
-
-  Estado := isRotated;
-
-  AtualizaTela(true);
-
-  Processando := False;
-
-  // Atualizar estado
-  tbSave.Enabled := True;
-  UpdateToolBarState;
 end;
 
 // Configuração da ToolBar via Designer
@@ -184,27 +168,39 @@ begin
   // Separador 1
   tbSeparator1.Style := tbsSeparator;
   tbSeparator1.Width := 8;
-  
+
+  tbUndo.Caption := 'Desfazer';
+  tbUndo.Hint := 'Desfazer alteração da imagem';
+  tbUndo.ImageIndex := 1;
+  tbUndo.ShowHint := True;
+
+  tbRedo.Caption := 'Refazer';
+  tbRedo.Hint := 'Refazer alteração na imagem';
+  tbRedo.ImageIndex := 2;
+  tbRedo.ShowHint := True;
+
   // tbGrayscale
   tbGrayscale.Caption := 'Cinza';
   tbGrayscale.Hint := 'Converter para escala de cinza';
-  tbGrayscale.ImageIndex := 1;
+  tbGrayscale.ImageIndex := 3;
   tbGrayscale.ShowHint := True;
 //  tbGrayscale.Style := tbsCheck;  // Botão toggle
 
   // tbBinary
   tbBinary.Caption := 'Binário';
   tbBinary.Hint := 'Converter para preto e branco';
-  tbBinary.ImageIndex := 2;
+  tbBinary.ImageIndex := 4;
   tbBinary.ShowHint := True;
-  tbBinary.Enabled := False;  // Inicialmente desabilitado
+  tbBinary.Style := tbsCheck;
+//  tbBinary.Enabled := False;  // Inicialmente desabilitado
 
   // tbRotate
   tbRotate.Caption := 'Rotação';
   tbRotate.Hint := 'Rotacionar imagem';
-  tbRotate.ImageIndex := 3;
+  tbRotate.ImageIndex := 5;
   tbRotate.ShowHint := True;
-  tbRotate.Style := tbsDropDown;  // Com dropdown
+//  tbRotate.Style := tbsDropDown;  // Com dropdown
+  tbRotate.Style := tbsCheck;
 
   // Separador 2
   tbSeparator2.Style := tbsSeparator;
@@ -212,7 +208,7 @@ begin
   // tbSave
   tbSave.Caption := 'Salvar';
   tbSave.Hint := 'Salvar imagem processada (Ctrl+S)';
-  tbSave.ImageIndex := 4;
+  tbSave.ImageIndex := 6;
   tbSave.ShowHint := True;
   tbSave.Enabled := False;
 
@@ -222,53 +218,31 @@ begin
   // tbWidthPlus
   tbWidthPlus.Caption := 'Largura +';
   tbWidthPlus.Hint := 'Aumentar largura (+)';
-  tbWidthPlus.ImageIndex := 5;
+  tbWidthPlus.ImageIndex := 7;
   tbWidthPlus.ShowHint := True;
 
   // tbWidthMinus
   tbWidthMinus.Caption := 'Largura -';
   tbWidthMinus.Hint := 'Diminuir largura (-)';
-  tbWidthMinus.ImageIndex := 6;
+  tbWidthMinus.ImageIndex := 8;
   tbWidthMinus.ShowHint := True;
 
   // tbHeightPlus
   tbHeightPlus.Caption := 'Altura +';
   tbHeightPlus.Hint := 'Aumentar altura (+)';
-  tbHeightPlus.ImageIndex := 7;
+  tbHeightPlus.ImageIndex := 9;
   tbHeightPlus.ShowHint := True;
 
   // tbHeightMinus
   tbHeightMinus.Caption := 'Altura -';
   tbHeightMinus.Hint := 'Diminuir altura (-)';
-  tbHeightMinus.ImageIndex := 8;
+  tbHeightMinus.ImageIndex := 10;
   tbHeightMinus.ShowHint := True;
 
   // Atualizar estado inicial
   UpdateToolBarState;
 end;
-{
-procedure TfrmMain.ShowBoxesInfo;
-var
-  i: Integer;
-  imgHeight: Integer;
-  line: string;
-begin
-  Memo1.Lines.Clear;
-  imgHeight := Image1.Picture.Height;
-  for i := 0 to High(Boxes) do
-  begin
-    // Converte coordenadas para o padrão Tesseract (origem inferior esquerda)
-    line := Format('Char: %s | Left: %d | Bottom: %d | Right: %d | Top: %d | Page: %d',
-      [Boxes[i].Character,
-       Boxes[i].Left,
-       imgHeight - Boxes[i].Bottom,
-       Boxes[i].Right,
-       imgHeight - Boxes[i].Top,
-       Boxes[i].Page]);
-    Memo1.Lines.Add(line);
-  end;
-end;
-}
+
 procedure SplitString(const S: string; const Delimiters: TSysCharSet; List: TStrings);
 begin
   List.Clear;
@@ -282,8 +256,6 @@ begin
   FBufferBitmap := TBitmap.Create;
   FOriginalBitmap := TBitmap.Create;
   FModifiedBmp := TBitmap.Create;
-  FRotatedBmp := TBitmap.Create;
-  Processando := False;
 
   StringGrid1.ColCount := 6;
   StringGrid1.Cells[0, 0] := 'Caractere';
@@ -294,6 +266,24 @@ begin
   StringGrid1.Cells[5, 0] := 'Página';
 
   SetupToolBar;
+
+  MaxUndoSteps := 5;
+  SetLength(FUndoList, 0);
+  SetLength(FRedoList, 0);
+
+  // Configurar botões Undo e Redo
+  tbUndo.Enabled := False;
+  tbRedo.Enabled := False;
+
+  tbBinary.Down := False;
+  tbRotate.Down := False;
+
+  TrackBarThreshold.Visible := False;
+  LabelThresholdValue.Visible := False;
+  TrackBarRotate.Visible := False;
+  LabelRotateValue.Visible := False;
+
+  EnableAllButtons;
 end;
 
 procedure TfrmMain.ShowBoxesInGrid;
@@ -507,7 +497,6 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  FRotatedBmp.Free;
   FModifiedBmp.Free;
   FBufferBitmap.Free;
   FOriginalBitmap.Free;
@@ -556,7 +545,11 @@ var
 begin
   if ListBox1.ItemIndex < 0 then Exit;
 //  Memo1.Clear;
-  
+
+  // Limpar estados Undo e Redo
+  ClearUndoStates;  // Limpa e libera memória dos bitmaps da lista Undo
+  ClearRedoStates;  // Limpa e libera memória dos bitmaps da lista Redo
+
   SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
   FullPath := FolderPath + SelectedFile;
 
@@ -569,11 +562,11 @@ begin
       raise Exception.Create('Erro na tentativa de carregar a imagem!');
     Image1.Width := Image1.Picture.Width;
     Image1.Height := Image1.Picture.Height;
-    case Image1.Picture.Bitmap.PixelFormat of
+{    case Image1.Picture.Bitmap.PixelFormat of
       pf1bit          : Estado := is1Bit;
       pf8bit          : Estado := is8Bit;
       pf16bit,pf24bit : Estado := is24Bit;
-    end;                                  
+    end;}                                  
 
     FOriginalBitmap.Assign(Image1.Picture.Bitmap);
 
@@ -639,28 +632,27 @@ begin
   if FileExists(arqbox) then
     LoadBoxesFromBox(arqbox); // substitui as caixas pelas do .box
 
+  // Salvar o estado inicial da imagem carregada no Undo
+  PushUndoState;
+
   UpdateImageCanvas;
 //  ShowBoxesInfo; // opcional: mostrar lista de caixas
   ShowBoxesInGrid;
 
   UpdateToolBarState;
+
+  // Atualizar botões Undo e Redo
+  tbUndo.Enabled := False;
+  tbRedo.Enabled := False;
 end;
 
-procedure TfrmMain.AtualizaTela(pRotacao: Boolean = false);
+procedure TfrmMain.AtualizaTela;
 begin
-  if pRotacao then begin
-    FBufferBitmap.Width := FRotatedBmp.Width;
-    FBufferBitmap.Height := FRotatedBmp.Height;
+  FBufferBitmap.Width := FModifiedBmp.Width;
+  FBufferBitmap.Height := FModifiedBmp.Height;
 
-    // Copia a imagem original limpa para o buffer
-    FBufferBitmap.Canvas.Draw(0, 0, FRotatedBmp);
-  end else begin
-    FBufferBitmap.Width := FModifiedBmp.Width;
-    FBufferBitmap.Height := FModifiedBmp.Height;
-
-    // Copia a imagem original limpa para o buffer
-    FBufferBitmap.Canvas.Draw(0, 0, FModifiedBmp);
-  end;
+  // Copia a imagem original limpa para o buffer
+  FBufferBitmap.Canvas.Draw(0, 0, FModifiedBmp);
 
 // Desconsiderar PixelFormat. Se for pf1bit provoca erro.
 // FBufferBitmap.PixelFormat := FModifiedBmp.PixelFormat;
@@ -746,40 +738,10 @@ begin
     Proc.Free;
   end;
 
-  Estado := is8Bit;
-
   AtualizaTela;
 
-  // Atualizar estado - habilitar próximo passo
-//  tbBinary.Enabled := True;
-//  tbGrayscale.Down := True;  // Marcar como pressionado
+  PushUndoState; // Salvar estado para Undo
 
-  UpdateToolBarState;
-end;
-
-procedure TfrmMain.tbBinaryClick(Sender: TObject);
-var
-  Proc: TImageEnProc;
-begin
-  if ListBox1.ItemIndex < 0 then exit;
-
-  Proc := TImageEnProc.Create(nil);
-  try
-    // Carrega a imagem no ImageEnProc
-    Proc.CreateFromBitmap(FModifiedBmp);
-
-    // Converte para binário (preto e branco)
-    Proc.ConvertToBWThreshold();
-  finally
-    Proc.Free;
-  end;
-
-  Estado := is1Bit;
-
-  AtualizaTela;
-
-  // Atualizar estado
-  tbRotate.Enabled := True;
   UpdateToolBarState;
 end;
 
@@ -797,26 +759,21 @@ begin
 
   ImageEnIO := TImageEnIO.Create(nil);
   try
-    // Salva o bitmap rotacionado em TIFF
-    if Estado = isRotated then
-      ImageEnIO.CreateFromBitmap(FRotatedBmp)
-    else
-      ImageEnIO.CreateFromBitmap(FModifiedBmp);
+    // Salva o bitmap modificado em TIFF
+    ImageEnIO.CreateFromBitmap(FModifiedBmp);
     ImageEnIO.SaveToFile(FullPath);
   finally
     ImageEnIO.Free;
   end;
 
-  if Estado = isRotated then
-    FOriginalBitmap.Assign(FRotatedBmp)
-  else
-    FOriginalBitmap.Assign(FModifiedBmp);
+  FOriginalBitmap.Assign(FModifiedBmp);
 
   UpdateToolBarState;
 end;
 
 procedure TfrmMain.UpdateToolBarState;
 begin
+{
   // Baseado no seu enum TImageState
   case Estado of
     is24Bit:
@@ -856,46 +813,7 @@ procedure TfrmMain.UpdateToolBarState;
     StatusBar1.Panels[0].Text := Format('Estado: %s', [GetStateDescription(Estado)]);
     StatusBar1.Panels[1].Text := Format('Imagem: %d x %d', [Image1.Width, Image1.Height]);
   end;
-end;
-
-procedure TfrmMain.Rotacionar901Click(Sender: TObject);
-begin
-  if ListBox1.ItemIndex < 0 then exit;
-  
-  Rotacionar(-90);
-end;
-
-procedure TfrmMain.Rotacionar902Click(Sender: TObject);
-begin
-  if ListBox1.ItemIndex < 0 then exit;
-
-  Rotacionar(90);
-end;
-
-procedure TfrmMain.Rotacionar1801Click(Sender: TObject);
-begin
-  if ListBox1.ItemIndex < 0 then exit;
-
-  Rotacionar(180);
-end;
-
-procedure TfrmMain.Rotaopersonalizada1Click(Sender: TObject);
-var
-  Angle: string;
-begin
-  if ListBox1.ItemIndex < 0 then exit;
-
-  Angle := InputBox('Rotação Personalizada', 'Digite o ângulo (-360 a 360):', '0');
-  if (Angle = '') or (StrToIntDef(Angle, 999) = 999) then
-    exit;
-
-  if (StrToInt(Angle) < -360)or(StrToInt(Angle) > 360) then
-  begin
-    ShowMessage('Valor de grau de inclinação inválido!');
-    exit;
-  end;
-
-  Rotacionar(StrToInt(Angle));
+}  
 end;
 
 procedure TfrmMain.tbWidthPlusClick(Sender: TObject);
@@ -978,6 +896,260 @@ procedure TfrmMain.tbHeightMinusClick(Sender: TObject);
 //    ShowBoxesInfo;
     ShowBoxesInGrid;
   end;
+end;
+
+procedure TfrmMain.ClearRedoStates;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FRedoList) do
+    FRedoList[i].Free;
+  SetLength(FRedoList, 0);
+end;
+
+procedure TfrmMain.PushUndoState;
+var
+  bmp: TBitmap;
+begin
+  // Limitar tamanho da lista Undo a MaxUndoSteps
+  if Length(FUndoList) = MaxUndoSteps then
+  begin
+    // Remove o estado mais antigo (posição 0)
+    FUndoList[0].Free;
+    Move(FUndoList[1], FUndoList[0], (MaxUndoSteps - 1) * SizeOf(TBitmap));
+    SetLength(FUndoList, MaxUndoSteps - 1);
+  end;
+
+  // Criar uma cópia do bitmap atual modificado
+  bmp := TBitmap.Create;
+  if Length(FUndoList) = 0 then
+    bmp.Assign(FOriginalBitmap)
+  else
+    bmp.Assign(FModifiedBmp);
+
+  // Adicionar ao final da lista Undo
+  SetLength(FUndoList, Length(FUndoList) + 1);
+  FUndoList[High(FUndoList)] := bmp;
+
+  // Sempre que um novo estado é salvo, limpar a lista Redo
+  ClearRedoStates;
+
+  // Atualizar botões
+  tbUndo.Enabled := Length(FUndoList) > 1;  // Pode desfazer se houver mais de 1 estado
+  tbRedo.Enabled := False;
+end;
+
+procedure TfrmMain.Redo;
+var
+  bmp: TBitmap;
+begin
+  if Length(FRedoList) = 0 then Exit; // Nada para refazer
+
+  // Recuperar o último estado do Redo para FModifiedBmp
+  FModifiedBmp.Assign(FRedoList[High(FRedoList)]);
+
+  // Mover o estado do Redo para Undo
+  bmp := TBitmap.Create;
+  bmp.Assign(FRedoList[High(FRedoList)]);
+  SetLength(FUndoList, Length(FUndoList) + 1);
+  FUndoList[High(FUndoList)] := bmp;
+
+  // Remover o estado do Redo
+  FRedoList[High(FRedoList)].Free;
+  SetLength(FRedoList, Length(FRedoList) - 1);
+
+  // Atualizar a tela
+  AtualizaTela;
+
+  // Atualizar botões
+  tbUndo.Enabled := Length(FUndoList) > 1;
+  tbRedo.Enabled := Length(FRedoList) > 0;
+end;
+
+procedure TfrmMain.Undo;
+var
+  bmp: TBitmap;
+begin
+  if Length(FUndoList) <= 1 then Exit; // Nada para desfazer
+
+  // Mover o estado atual para Redo
+  bmp := TBitmap.Create;
+  bmp.Assign(FUndoList[High(FUndoList)]);
+  SetLength(FRedoList, Length(FRedoList) + 1);
+  FRedoList[High(FRedoList)] := bmp;
+
+  // Remover o estado atual de Undo
+  FUndoList[High(FUndoList)].Free;
+  SetLength(FUndoList, Length(FUndoList) - 1);
+
+  // Recuperar o último estado do Undo para FModifiedBmp
+  FModifiedBmp.Assign(FUndoList[High(FUndoList)]);
+
+  // Atualizar a tela com o estado recuperado
+  AtualizaTela;
+
+  // Atualizar botões
+  tbUndo.Enabled := Length(FUndoList) > 1;
+  tbRedo.Enabled := Length(FRedoList) > 0;
+end;
+
+procedure TfrmMain.tbUndoClick(Sender: TObject);
+begin
+  Undo;
+end;
+
+procedure TfrmMain.tbRedoClick(Sender: TObject);
+begin
+  Redo;
+end;
+
+procedure TfrmMain.ClearUndoStates;
+var
+  i: Integer;
+begin
+  for i := 0 to High(FUndoList) do
+    FUndoList[i].Free;
+  SetLength(FUndoList, 0);
+end;
+
+procedure TfrmMain.tbApplyClick(Sender: TObject);
+var
+  Proc: TImageEnProc;
+begin
+  Proc := TImageEnProc.Create(nil);
+  try
+
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+
+    if tbBinary.Down then
+    begin
+
+      // Converte para binário (preto e branco)
+      Proc.ConvertToBWThreshold(TrackBarThreshold.Position);
+
+    end
+    else if tbRotate.Down then
+    begin
+
+      // Rotaciona com suavização bilinear
+      Proc.Rotate(TrackBarRotate.Position, true, ierBilinear);
+    end;
+
+  finally
+    Proc.Free;
+  end;
+
+  AtualizaTela;
+
+  PushUndoState; // Salvar estado para Undo
+
+  // Após aplicar, desativa botões e oculta controles
+  tbBinary.Down := False;
+  tbRotate.Down := False;
+
+  TrackBarThreshold.Visible := False;
+  LabelThresholdValue.Visible := False;
+  TrackBarRotate.Visible := False;
+  LabelRotateValue.Visible := False;
+
+  EnableAllButtons;
+
+  UpdateToolBarState;
+
+end;
+
+procedure TfrmMain.tbBinaryClick(Sender: TObject);
+begin
+  if tbBinary.Down then
+  begin
+    // Ativa controle de threshold e botão aplicar
+    TrackBarThreshold.Visible := True;
+    LabelThresholdValue.Visible := True;
+    tbApply.Visible := True;
+
+    TrackBarThreshold.Position := 128;
+    LabelThresholdValue.Caption := IntToStr(TrackBarThreshold.Position);
+
+    // Desativa outros botões, exceto tbBinary e tbApply
+    DisableOtherButtons(tbBinary);
+  end
+  else
+  begin
+    // Desativa controles e botão aplicar
+    TrackBarThreshold.Visible := False;
+    LabelThresholdValue.Visible := False;
+    tbApply.Visible := False;
+
+    // Recarrega imagem para descartar alterações
+//    UndoDiscardChanges;
+
+    // Reabilita todos os botões
+    EnableAllButtons;
+  end;
+end;
+
+procedure TfrmMain.tbRotateClick(Sender: TObject);
+begin
+  if tbRotate.Down then
+  begin
+    // Ativa controle de rotação e botão aplicar
+    TrackBarRotate.Visible := True;
+    LabelRotateValue.Visible := True;
+    tbApply.Visible := True;
+
+    TrackBarRotate.Position := 0;
+    LabelRotateValue.Caption := IntToStr(TrackBarRotate.Position);
+
+    // Desativa outros botões, exceto tbRotate e tbApply
+    DisableOtherButtons(tbRotate);
+  end
+  else
+  begin
+    // Desativa controles e botão aplicar
+    TrackBarRotate.Visible := False;
+    LabelRotateValue.Visible := False;
+    tbApply.Visible := False;
+
+    // Recarrega imagem para descartar alterações
+//    UndoDiscardChanges;
+
+    // Reabilita todos os botões
+    EnableAllButtons;
+  end;
+end;
+
+procedure TfrmMain.DisableOtherButtons(ActiveButton: TToolButton);
+var
+  i: Integer;
+begin
+  for i := 0 to ToolBar1.ButtonCount - 1 do
+  begin
+    if ToolBar1.Buttons[i] <> ActiveButton then
+      ToolBar1.Buttons[i].Enabled := False;
+  end;
+  ActiveButton.Enabled := True;
+  tbApply.Enabled := True;
+  tbApply.Visible := True;
+end;
+
+procedure TfrmMain.EnableAllButtons;
+var
+  i: Integer;
+begin
+  for i := 0 to ToolBar1.ButtonCount - 1 do
+    ToolBar1.Buttons[i].Enabled := True;
+  tbApply.Visible := False;
+end;
+
+procedure TfrmMain.TrackBarThresholdChange(Sender: TObject);
+begin
+  LabelThresholdValue.Caption := IntToStr(TrackBarThreshold.Position);
+end;
+
+procedure TfrmMain.TrackBarRotateChange(Sender: TObject);
+begin
+  LabelRotateValue.Caption := IntToStr(TrackBarRotate.Position);
 end;
 
 end.
