@@ -48,6 +48,11 @@ type
     StringGrid1: TStringGrid;
     tbHeightPlus: TToolButton;
     tbHeightMinus: TToolButton;
+    tbDefaultBox: TToolButton;
+    ImageList2: TImageList;
+    tbUndo: TToolButton;
+    tbRedo: TToolButton;
+    ToolButton3: TToolButton;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -185,7 +190,7 @@ begin
   tbGrayscale.Hint := 'Converter para escala de cinza';
   tbGrayscale.ImageIndex := 1;
   tbGrayscale.ShowHint := True;
-  tbGrayscale.Style := tbsCheck;  // Botão toggle
+//  tbGrayscale.Style := tbsCheck;  // Botão toggle
 
   // tbBinary
   tbBinary.Caption := 'Binário';
@@ -725,6 +730,8 @@ procedure TfrmMain.tbGrayscaleClick(Sender: TObject);
 var
   Proc: TImageEnProc;
 begin
+  if ListBox1.ItemIndex < 0 then exit;
+
   Proc := TImageEnProc.Create(nil);
   try
     FModifiedBmp.Assign(FOriginalBitmap);
@@ -744,8 +751,8 @@ begin
   AtualizaTela;
 
   // Atualizar estado - habilitar próximo passo
-  tbBinary.Enabled := True;
-  tbGrayscale.Down := True;  // Marcar como pressionado
+//  tbBinary.Enabled := True;
+//  tbGrayscale.Down := True;  // Marcar como pressionado
 
   UpdateToolBarState;
 end;
@@ -754,6 +761,8 @@ procedure TfrmMain.tbBinaryClick(Sender: TObject);
 var
   Proc: TImageEnProc;
 begin
+  if ListBox1.ItemIndex < 0 then exit;
+
   Proc := TImageEnProc.Create(nil);
   try
     // Carrega a imagem no ImageEnProc
@@ -779,6 +788,7 @@ procedure TfrmMain.tbSaveClick(Sender: TObject);
   SelectedFile, FullPath: string;
   ImageEnIO: TImageEnIO;
 begin
+  if ListBox1.ItemIndex < 0 then exit;
 
   SelectedFile := copy(ListBox1.Items[ListBox1.ItemIndex],5,30);
   FullPath := FolderPath + SelectedFile;
@@ -811,7 +821,7 @@ procedure TfrmMain.UpdateToolBarState;
   case Estado of
     is24Bit:
     begin
-      tbGrayscale.Enabled := True;
+      tbGrayscale.Enabled := ListBox1.ItemIndex >= 0;
       tbBinary.Enabled := False;
       tbRotate.Enabled := False;
       tbSave.Enabled := False;
