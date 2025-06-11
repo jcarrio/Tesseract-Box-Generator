@@ -51,10 +51,10 @@ type
     tbUndo: TToolButton;
     tbRedo: TToolButton;
     ToolButton3: TToolButton;
-    TrackBarThreshold: TTrackBar;
-    LabelThresholdValue: TLabel;
     TrackBarRotate: TTrackBar;
     LabelRotateValue: TLabel;
+    TrackBarThreshold: TTrackBar;
+    LabelThresholdValue: TLabel;
     procedure btnSaveBoxClick(Sender: TObject);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -94,6 +94,7 @@ type
     FOriginalBitmap: TBitmap;
     FModifiedBmp: TBitmap;
     FolderPath: String;
+    Processando: Boolean;
 
     FUndoList: array of TBitmap;
     FRedoList: array of TBitmap;
@@ -115,6 +116,8 @@ type
     procedure ShowBoxesInGrid;
     procedure DisableOtherButtons(ActiveButton: TToolButton);
     procedure EnableAllButtons;
+    procedure MostraThreshold(pEstado: Boolean);
+    procedure MostraRotate(pEstado: Boolean);
   public
   end;
 
@@ -126,6 +129,9 @@ implementation
 {$R *.dfm}
 
 uses FileCtrl, imageenio, StrUtils, Math, imageenproc, hyieutils;
+
+var
+  Proc: TImageEnProc;
 
 procedure RotateBitmap(const Src: TBitmap; Angle: Single; var Dest: TBitmap);
 var
@@ -184,7 +190,6 @@ begin
   tbGrayscale.Hint := 'Converter para escala de cinza';
   tbGrayscale.ImageIndex := 3;
   tbGrayscale.ShowHint := True;
-//  tbGrayscale.Style := tbsCheck;  // Botão toggle
 
   // tbBinary
   tbBinary.Caption := 'Binário';
@@ -192,14 +197,12 @@ begin
   tbBinary.ImageIndex := 4;
   tbBinary.ShowHint := True;
   tbBinary.Style := tbsCheck;
-//  tbBinary.Enabled := False;  // Inicialmente desabilitado
 
   // tbRotate
   tbRotate.Caption := 'Rotação';
   tbRotate.Hint := 'Rotacionar imagem';
   tbRotate.ImageIndex := 5;
   tbRotate.ShowHint := True;
-//  tbRotate.Style := tbsDropDown;  // Com dropdown
   tbRotate.Style := tbsCheck;
 
   // Separador 2
@@ -425,14 +428,14 @@ end;
 
 procedure TfrmMain.UpdateImageCanvas;
 begin
-  if FOriginalBitmap = nil then Exit;
+  if FModifiedBmp = nil then Exit;
 
-  FBufferBitmap.Width := FOriginalBitmap.Width;
-  FBufferBitmap.Height := FOriginalBitmap.Height;
-  FBufferBitmap.PixelFormat := FOriginalBitmap.PixelFormat;
+  FBufferBitmap.Width := FModifiedBmp.Width;
+  FBufferBitmap.Height := FModifiedBmp.Height;
+//  FBufferBitmap.PixelFormat := FModifiedBmp.PixelFormat;
 
   // Copia a imagem original limpa para o buffer
-  FBufferBitmap.Canvas.Draw(0, 0, FOriginalBitmap);
+  FBufferBitmap.Canvas.Draw(0, 0, FModifiedBmp);
 
   // Desenha as caixas no buffer
   DrawBoxesOnCanvas(FBufferBitmap.Canvas);
@@ -543,8 +546,10 @@ var
   texto: String;
   f: TextFile;
 begin
+  if tbUndo.Enabled then
+    ShowMessage('Descartando alterações anteriores...');
+
   if ListBox1.ItemIndex < 0 then Exit;
-//  Memo1.Clear;
 
   // Limpar estados Undo e Redo
   ClearUndoStates;  // Limpa e libera memória dos bitmaps da lista Undo
@@ -562,13 +567,9 @@ begin
       raise Exception.Create('Erro na tentativa de carregar a imagem!');
     Image1.Width := Image1.Picture.Width;
     Image1.Height := Image1.Picture.Height;
-{    case Image1.Picture.Bitmap.PixelFormat of
-      pf1bit          : Estado := is1Bit;
-      pf8bit          : Estado := is8Bit;
-      pf16bit,pf24bit : Estado := is24Bit;
-    end;}                                  
 
     FOriginalBitmap.Assign(Image1.Picture.Bitmap);
+    FModifiedBmp.Assign(FOriginalBitmap);
 
     ScrollBox1.HorzScrollBar.Range := Image1.Width;
     ScrollBox1.VertScrollBar.Range := Image1.Height;
@@ -641,9 +642,7 @@ begin
 
   UpdateToolBarState;
 
-  // Atualizar botões Undo e Redo
-  tbUndo.Enabled := False;
-  tbRedo.Enabled := False;
+  Processando := False;
 end;
 
 procedure TfrmMain.AtualizaTela;
@@ -719,23 +718,18 @@ begin
 end;
 
 procedure TfrmMain.tbGrayscaleClick(Sender: TObject);
-var
-  Proc: TImageEnProc;
-begin
+begin
   if ListBox1.ItemIndex < 0 then exit;
 
   Proc := TImageEnProc.Create(nil);
   try
-    FModifiedBmp.Assign(FOriginalBitmap);
-
     // Carrega a imagem no ImageEnProc
     Proc.CreateFromBitmap(FModifiedBmp);
-//    Proc.DoPreviews()
 
     // Converte para escala de cinza
     Proc.ConvertToGray;
   finally
-    Proc.Free;
+    FreeAndNil(Proc);
   end;
 
   AtualizaTela;
@@ -767,53 +761,20 @@ begin
   end;
 
   FOriginalBitmap.Assign(FModifiedBmp);
+  
+  // Limpar estados Undo e Redo
+  ClearUndoStates;  // Limpa e libera memória dos bitmaps da lista Undo
+  ClearRedoStates;  // Limpa e libera memória dos bitmaps da lista Redo
 
   UpdateToolBarState;
 end;
 
 procedure TfrmMain.UpdateToolBarState;
 begin
-{
-  // Baseado no seu enum TImageState
-  case Estado of
-    is24Bit:
-    begin
-      tbGrayscale.Enabled := ListBox1.ItemIndex >= 0;
-      tbBinary.Enabled := False;
-      tbRotate.Enabled := False;
-      tbSave.Enabled := False;
-    end;
-    
-    is8Bit:
-    begin
-      tbGrayscale.Enabled := False;
-      tbGrayscale.Down := True;
-      tbBinary.Enabled := True;
-      tbRotate.Enabled := False;
-      tbSave.Enabled := False;
-    end;
-    
-    is1Bit:
-    begin
-      tbGrayscale.Down := True;
-      tbBinary.Enabled := False;
-      tbRotate.Enabled := True;
-      tbSave.Enabled := False;
-    end;
-    
-    isRotated:
-    begin
-      tbSave.Enabled := True;
-    end;
-  end;
+  tbUndo.Enabled := Length(FUndoList) > 1;
+  tbRedo.Enabled := Length(FRedoList) > 0;
 
-  // Atualizar StatusBar com informações
-  if Assigned(StatusBar1) then
-  begin
-    StatusBar1.Panels[0].Text := Format('Estado: %s', [GetStateDescription(Estado)]);
-    StatusBar1.Panels[1].Text := Format('Imagem: %d x %d', [Image1.Width, Image1.Height]);
-  end;
-}  
+  tbSave.Enabled := tbUndo.Enabled;
 end;
 
 procedure TfrmMain.tbWidthPlusClick(Sender: TObject);
@@ -996,11 +957,15 @@ end;
 procedure TfrmMain.tbUndoClick(Sender: TObject);
 begin
   Undo;
+
+  UpdateToolBarState;
 end;
 
 procedure TfrmMain.tbRedoClick(Sender: TObject);
 begin
   Redo;
+
+  UpdateToolBarState;
 end;
 
 procedure TfrmMain.ClearUndoStates;
@@ -1013,32 +978,10 @@ begin
 end;
 
 procedure TfrmMain.tbApplyClick(Sender: TObject);
-var
-  Proc: TImageEnProc;
+//var
+//  Proc: TImageEnProc;
 begin
-  Proc := TImageEnProc.Create(nil);
-  try
-
-    // Carrega a imagem no ImageEnProc
-    Proc.CreateFromBitmap(FModifiedBmp);
-
-    if tbBinary.Down then
-    begin
-
-      // Converte para binário (preto e branco)
-      Proc.ConvertToBWThreshold(TrackBarThreshold.Position);
-
-    end
-    else if tbRotate.Down then
-    begin
-
-      // Rotaciona com suavização bilinear
-      Proc.Rotate(TrackBarRotate.Position, true, ierBilinear);
-    end;
-
-  finally
-    Proc.Free;
-  end;
+  FreeAndNil(Proc);
 
   AtualizaTela;
 
@@ -1048,10 +991,8 @@ begin
   tbBinary.Down := False;
   tbRotate.Down := False;
 
-  TrackBarThreshold.Visible := False;
-  LabelThresholdValue.Visible := False;
-  TrackBarRotate.Visible := False;
-  LabelRotateValue.Visible := False;
+  MostraThreshold(False);
+  MostraRotate(False);
 
   EnableAllButtons;
 
@@ -1059,44 +1000,74 @@ begin
 
 end;
 
+procedure TfrmMain.MostraThreshold(pEstado: Boolean);
+begin
+  // Ativa controle de threshold e botão aplicar
+  TrackBarThreshold.Visible := pEstado;
+  LabelThresholdValue.Visible := pEstado;
+  tbApply.Visible := pEstado;
+end;
+
 procedure TfrmMain.tbBinaryClick(Sender: TObject);
 begin
+  if ListBox1.ItemIndex < 0 then exit;
+
+  MostraThreshold(tbBinary.Down);
   if tbBinary.Down then
   begin
-    // Ativa controle de threshold e botão aplicar
-    TrackBarThreshold.Visible := True;
-    LabelThresholdValue.Visible := True;
-    tbApply.Visible := True;
+    Proc := TImageEnProc.Create(nil);
 
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+    Proc.SaveUndo;
+
+    Processando := True;
     TrackBarThreshold.Position := 128;
     LabelThresholdValue.Caption := IntToStr(TrackBarThreshold.Position);
+    Processando := False;
+
+    TrackBarThresholdChange(Sender);
 
     // Desativa outros botões, exceto tbBinary e tbApply
     DisableOtherButtons(tbBinary);
   end
   else
   begin
-    // Desativa controles e botão aplicar
-    TrackBarThreshold.Visible := False;
-    LabelThresholdValue.Visible := False;
-    tbApply.Visible := False;
-
     // Recarrega imagem para descartar alterações
-//    UndoDiscardChanges;
+    if Proc.CanUndo then
+      Proc.Undo();
+
+    FreeAndNil(Proc);
+
+    AtualizaTela;
 
     // Reabilita todos os botões
     EnableAllButtons;
+
+    UpdateToolBarState;
   end;
+end;
+
+procedure TfrmMain.MostraRotate(pEstado: Boolean);
+begin
+  // Ativa controle de rotação e botão aplicar
+  TrackBarRotate.Visible := pEstado;
+  LabelRotateValue.Visible := pEstado;
+  tbApply.Visible := pEstado;
 end;
 
 procedure TfrmMain.tbRotateClick(Sender: TObject);
 begin
+  if ListBox1.ItemIndex < 0 then exit;
+
+  MostraRotate(tbRotate.Down);
   if tbRotate.Down then
   begin
-    // Ativa controle de rotação e botão aplicar
-    TrackBarRotate.Visible := True;
-    LabelRotateValue.Visible := True;
-    tbApply.Visible := True;
+    Proc := TImageEnProc.Create(nil);
+
+    // Carrega a imagem no ImageEnProc
+    Proc.CreateFromBitmap(FModifiedBmp);
+    Proc.SaveUndo;
 
     TrackBarRotate.Position := 0;
     LabelRotateValue.Caption := IntToStr(TrackBarRotate.Position);
@@ -1106,16 +1077,18 @@ procedure TfrmMain.tbRotateClick(Sender: TObject);
   end
   else
   begin
-    // Desativa controles e botão aplicar
-    TrackBarRotate.Visible := False;
-    LabelRotateValue.Visible := False;
-    tbApply.Visible := False;
-
     // Recarrega imagem para descartar alterações
-//    UndoDiscardChanges;
+    if Proc.CanUndo then
+      Proc.Undo();
 
+    FreeAndNil(Proc);
+
+    AtualizaTela;
+      
     // Reabilita todos os botões
     EnableAllButtons;
+
+    UpdateToolBarState;
   end;
 end;
 
@@ -1131,6 +1104,10 @@ begin
   ActiveButton.Enabled := True;
   tbApply.Enabled := True;
   tbApply.Visible := True;
+
+  StringGrid1.Enabled := False;
+  btnSaveBox.Enabled := False;
+  ListBox1.Enabled := False;
 end;
 
 procedure TfrmMain.EnableAllButtons;
@@ -1140,16 +1117,48 @@ begin
   for i := 0 to ToolBar1.ButtonCount - 1 do
     ToolBar1.Buttons[i].Enabled := True;
   tbApply.Visible := False;
+
+  StringGrid1.Enabled := True;
+  btnSaveBox.Enabled := True;
+  ListBox1.Enabled := True;
 end;
 
 procedure TfrmMain.TrackBarThresholdChange(Sender: TObject);
 begin
+  if Processando then exit;
+
+  Processando := True;
+
   LabelThresholdValue.Caption := IntToStr(TrackBarThreshold.Position);
+
+  if Proc.CanUndo then
+    Proc.Undo();
+
+  // Converte para binário (preto e branco)
+  Proc.ConvertToBWThreshold(TrackBarThreshold.Position);
+
+  AtualizaTela;
+
+  Processando := False;
 end;
 
 procedure TfrmMain.TrackBarRotateChange(Sender: TObject);
 begin
+  if Processando then exit;
+
+  Processando := True;
+
   LabelRotateValue.Caption := IntToStr(TrackBarRotate.Position);
+
+  if Proc.CanUndo then
+    Proc.Undo();
+
+  // Rotaciona com suavização bilinear
+  Proc.Rotate(TrackBarRotate.Position, true, ierBilinear);
+
+  AtualizaTela;
+
+  Processando := False;
 end;
 
 end.

@@ -188,19 +188,19 @@ object frmMain: TfrmMain
     Height = 129
     Align = alBottom
     TabOrder = 3
-    object LabelThresholdValue: TLabel
-      Left = 600
-      Top = 0
-      Width = 18
-      Height = 13
-      Caption = '128'
-    end
     object LabelRotateValue: TLabel
       Left = 600
       Top = 64
       Width = 6
       Height = 13
       Caption = '0'
+    end
+    object LabelThresholdValue: TLabel
+      Left = 600
+      Top = 18
+      Width = 18
+      Height = 13
+      Caption = '128'
     end
     object btnSaveBox: TButton
       Left = 430
@@ -219,30 +219,30 @@ object frmMain: TfrmMain
       ColCount = 6
       DefaultRowHeight = 18
       RowCount = 2
-      Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect]
+      Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
       TabOrder = 1
       OnSelectCell = StringGrid1SelectCell
       OnSetEditText = StringGrid1SetEditText
-    end
-    object TrackBarThreshold: TTrackBar
-      Left = 592
-      Top = 16
-      Width = 400
-      Height = 45
-      Max = 255
-      Position = 128
-      TabOrder = 2
-      OnChange = TrackBarThresholdChange
     end
     object TrackBarRotate: TTrackBar
       Left = 592
       Top = 80
       Width = 400
-      Height = 45
+      Height = 23
       Max = 90
       Min = -90
-      TabOrder = 3
+      TabOrder = 2
       OnChange = TrackBarRotateChange
+    end
+    object TrackBarThreshold: TTrackBar
+      Left = 592
+      Top = 34
+      Width = 400
+      Height = 22
+      Max = 255
+      Position = 128
+      TabOrder = 3
+      OnChange = TrackBarThresholdChange
     end
   end
   object StatusBar1: TStatusBar
@@ -286,7 +286,7 @@ object frmMain: TfrmMain
     Left = 534
     Top = 533
     Bitmap = {
-      494C01010C000E00040010001000FFFFFFFFFF00FFFFFFFFFFFFFFFF424D3600
+      494C01010C000E00040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000004000000001002000000000000040
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -818,13 +818,14 @@ object frmMain: TfrmMain
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000}
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000}
   end
   object ImageList2: TImageList
     Left = 534
     Top = 565
     Bitmap = {
-      494C01010C000E00040010001000FFFFFFFFFF00FFFFFFFFFFFFFFFF424D3600
+      494C01010C000E00040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000004000000001002000000000000040
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1356,6 +1357,7 @@ object frmMain: TfrmMain
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000}
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000}
   end
 end
