@@ -95,6 +95,7 @@ type
     FModifiedBmp: TBitmap;
     FolderPath: String;
     Processando: Boolean;
+    Clicando: Boolean;
 
     FUndoList: array of TBitmap;
     FRedoList: array of TBitmap;
@@ -256,6 +257,7 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   SelectedBox := -1;
   IsDragging := False;
+  Clicando := False;
   FBufferBitmap := TBitmap.Create;
   FOriginalBitmap := TBitmap.Create;
   FModifiedBmp := TBitmap.Create;
@@ -471,6 +473,10 @@ begin
     // Se quiser desmarcar ao clicar fora, pode descomentar:
     // SelectedBox := -1;
     IsDragging := False;
+  end else if (i <> -1) and (StringGrid1.Row <> i+1) then begin
+    Clicando := True;
+    StringGrid1.Row := i+1;
+    Clicando := False;
   end;
 end;
 
@@ -824,6 +830,8 @@ end;
 procedure TfrmMain.StringGrid1SelectCell(Sender: TObject; ACol,
   ARow: Integer; var CanSelect: Boolean);
 begin
+  if Clicando then exit;
+  
   // Verifica se não é o header (linha 0)
   if ARow > 0 then
   begin
