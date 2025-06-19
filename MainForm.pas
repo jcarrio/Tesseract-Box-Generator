@@ -276,10 +276,6 @@ begin
   SetLength(FUndoList, 0);
   SetLength(FRedoList, 0);
 
-  // Configurar botões Undo e Redo
-  tbUndo.Enabled := False;
-  tbRedo.Enabled := False;
-
   tbBinary.Down := False;
   tbRotate.Down := False;
 
@@ -289,6 +285,11 @@ begin
   LabelRotateValue.Visible := False;
 
   EnableAllButtons;
+
+  // Configurar botões Undo e Redo
+  tbUndo.Enabled := False;
+  tbRedo.Enabled := False;
+ 
 end;
 
 procedure TfrmMain.ShowBoxesInGrid;
